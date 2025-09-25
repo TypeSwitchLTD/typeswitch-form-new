@@ -1,5 +1,5 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import { supabase } from './supabase'; // Changed to a static import for better stability
+import { supabase } from './supabase';
 
 export interface DeviceInfo {
   fingerprint: string;
@@ -8,24 +8,24 @@ export interface DeviceInfo {
   isMobile: boolean;
 }
 
-// זיהוי סוג המכשיר (Your original function - untouched)
+// This interface defines the new return type for our check function
+export interface SubmissionCheckResult {
+  submitted: boolean;
+  surveyId: string | null;
+  discountCode: string | null;
+}
+
+// The following functions remain untouched
 export const detectDevice = (): { type: 'mobile' | 'tablet' | 'desktop'; isMobile: boolean } => {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform.toLowerCase();
-  
-  // בדיקה למובייל
   const isMobile = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-  
-  // בדיקה לטאבלט
-  const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent) || 
-                   (platform === 'macintel' && navigator.maxTouchPoints > 1);
-  
+  const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent) || (platform === 'macintel' && navigator.maxTouchPoints > 1);
   if (isMobile) return { type: 'mobile', isMobile: true };
   if (isTablet) return { type: 'tablet', isMobile: true };
   return { type: 'desktop', isMobile: false };
 };
 
-// קבלת fingerprint של המכשיר (Your original function - untouched)
 export const getDeviceFingerprint = async (): Promise<string> => {
   try {
     const fp = await FingerprintJS.load();
@@ -33,12 +33,10 @@ export const getDeviceFingerprint = async (): Promise<string> => {
     return result.visitorId;
   } catch (error) {
     console.error('Error getting fingerprint:', error);
-    // אם נכשל, נחזיר מזהה אקראי
     return `fallback_${Math.random().toString(36).substr(2, 9)}`;
   }
 };
 
-// קבלת כתובת IP (Your original function - untouched)
 export const getIPAddress = async (): Promise<string> => {
   try {
     const response = await fetch('https://ipapi.co/json/');
@@ -50,33 +48,39 @@ export const getIPAddress = async (): Promise<string> => {
   }
 };
 
-// בדיקה אם המשתמש כבר מילא את השאלון
-export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<boolean> => {
+// *** THE SURGICAL CHANGE IS HERE ***
+// The function now returns an object with details instead of just a boolean.
+export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<SubmissionCheckResult> => {
   try {
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- MINIMAL CHANGE
-      .select('id')
+      .from('survey_responses_v2')
+      .select('id, discount_code') // Fetching the ID and code
       .or(`device_fingerprint.eq.${fingerprint},ip_address.eq.${ip}`)
       .eq('survey_completed', true)
-      .limit(1);
+      .limit(1)
+      .single(); // Using .single() is more efficient for one expected row
     
-    if (error) {
-      console.error('Error checking submission:', error);
-      return false;
+    if (error || !data) {
+      if (error && error.code !== 'PGRST116') { // Ignore 'exact one row not found' error
+          console.error('Error checking submission:', error);
+      }
+      return { submitted: false, surveyId: null, discountCode: null };
     }
     
-    return data && data.length > 0;
+    // If data is found, return it
+    return { submitted: true, surveyId: data.id, discountCode: data.discount_code };
+
   } catch (error) {
     console.error('Error in checkIfAlreadySubmitted:', error);
-    return false;
+    return { submitted: false, surveyId: null, discountCode: null };
   }
 };
 
-// שמירת מידע על המכשיר
+// This function remains the same, only pointing to the v2 table
 export const saveDeviceInfo = async (surveyId: string, deviceInfo: DeviceInfo): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('survey_responses_v2') // <--- MINIMAL CHANGE
+      .from('survey_responses_v2')
       .update({
         ip_address: deviceInfo.ip,
         device_fingerprint: deviceInfo.fingerprint,
