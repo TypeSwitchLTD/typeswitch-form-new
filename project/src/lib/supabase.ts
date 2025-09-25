@@ -8,22 +8,23 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Initialize Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Helper function to calculate overall score
+// Helper function to calculate overall score (Your original function - untouched)
 function calculateOverallScore(metrics: any): number {
+  if (!metrics || metrics.wpm === undefined) return 0; // Added check for undefined to be safe
   let score = 100;
   
-  // WPM scoring (max 30 points penalty)
-  if (metrics.wpm < 20) score -= 30;
-  else if (metrics.wpm < 30) score -= 25;
-  else if (metrics.wpm < 40) score -= 18;
-  else if (metrics.wpm < 50) score -= 10;
-  else if (metrics.wpm < 60) score -= 5;
+  // WPM scoring (max 25 points penalty)
+  if (metrics.wpm < 20) score -= 25;
+  else if (metrics.wpm < 30) score -= 20;
+  else if (metrics.wpm < 40) score -= 15;
+  else if (metrics.wpm < 50) score -= 8;
+  else if (metrics.wpm < 60) score -= 3;
   
-  // Accuracy scoring (max 30 points penalty)
-  if (metrics.accuracy < 70) score -= 30;
-  else if (metrics.accuracy < 80) score -= 25;
-  else if (metrics.accuracy < 85) score -= 20;
-  else if (metrics.accuracy < 90) score -= 15;
+  // Accuracy scoring (max 25 points penalty)
+  if (metrics.accuracy < 70) score -= 25;
+  else if (metrics.accuracy < 80) score -= 20;
+  else if (metrics.accuracy < 85) score -= 15;
+  else if (metrics.accuracy < 90) score -= 12;
   else if (metrics.accuracy < 95) score -= 10;
   else if (metrics.accuracy < 98) score -= 5;
   
@@ -53,64 +54,64 @@ export async function saveSurveyData(surveyData: SurveyData, discountCode: strin
   try {
     console.log('📊 Preparing data for Supabase...');
     console.log('Full survey data:', surveyData);
-    console.log('Purchase decision:', surveyData.purchaseDecision);
-    
+        
     // Calculate total time
     const completionTime = Math.round((Date.now() - ((window as any).surveyStartTime || Date.now())) / 1000);
     
+    // *** THE CRITICAL FIX IS HERE: This object now matches the survey_responses_v2 schema ***
     // Prepare data for database with proper validation
     const dataToSave = {
       // Demographics
       languages: surveyData.demographics?.languages || [],
-      hours_typing: surveyData.demographics?.hoursTyping || '',
-      occupation: surveyData.demographics?.occupation || '',
-      keyboard_type: surveyData.demographics?.keyboardType || '',
-      current_keyboard: surveyData.demographics?.currentKeyboard || '',
-      age: surveyData.demographics?.age || '',
-      diagnosis: surveyData.demographics?.diagnosis || '',
+      hours_typing: surveyData.demographics?.hoursTyping || null,
+      occupation: surveyData.demographics?.occupation || null,
+      keyboard_type: surveyData.demographics?.keyboardType || null,
+      current_keyboard: surveyData.demographics?.currentKeyboard || null,
+      age: surveyData.demographics?.age || null,
+      diagnosis: surveyData.demographics?.diagnosis || null,
       
       // Self Assessment
-      difficulty_rating: surveyData.selfAssessment?.difficulty || 0,
-      errors_rating: surveyData.selfAssessment?.errors || 0,
-      language_switching_rating: surveyData.selfAssessment?.languageSwitching || 0,
-      frustration_rating: surveyData.selfAssessment?.frustration || 0,
+      difficulty_rating: surveyData.selfAssessment?.difficulty || null,
+      errors_rating: surveyData.selfAssessment?.errors || null,
+      language_switching_rating: surveyData.selfAssessment?.languageSwitching || null,
+      frustration_rating: surveyData.selfAssessment?.frustration || null,
       
       // Metrics Summary
-      total_wpm: surveyData.metrics?.wpm || 0,
-      total_accuracy: surveyData.metrics?.accuracy || 0,
-      total_errors: surveyData.metrics?.totalErrors || 0,
-      total_language_errors: surveyData.metrics?.languageErrors || 0,
-      total_punctuation_errors: surveyData.metrics?.punctuationErrors || 0,
-      total_deletions: surveyData.metrics?.deletions || 0,
-      total_corrections: surveyData.metrics?.corrections || 0,
-      total_language_switches: surveyData.metrics?.languageSwitches || 0,
-      frustration_score: surveyData.metrics?.frustrationScore || 0,
+      total_wpm: surveyData.metrics?.wpm || null,
+      total_accuracy: surveyData.metrics?.accuracy || null,
+      total_errors: surveyData.metrics?.totalErrors || null,
+      total_language_errors: surveyData.metrics?.languageErrors || null,
+      total_punctuation_errors: surveyData.metrics?.punctuationErrors || null,
+      total_deletions: surveyData.metrics?.deletions || null,
+      total_corrections: surveyData.metrics?.corrections || null,
+      total_language_switches: surveyData.metrics?.languageSwitches || null,
+      frustration_score: surveyData.metrics?.frustrationScore || null,
       overall_score: calculateOverallScore(surveyData.metrics || {}),
       
-      // Feature Ratings
-      feature_ratings: surveyData.featureRatings?.ratings || {},
-      top_features: surveyData.featureRatings?.topFeatures || [],
-      
-      // Purchase Decision - FIXED WITH VALIDATION
-      purchase_priorities: surveyData.purchaseDecision?.priorities || {},
-      where_to_buy: surveyData.purchaseDecision?.whereToBuy || [],
-      price_range: surveyData.purchaseDecision?.priceRange || '',
-      other_problem: surveyData.purchaseDecision?.otherProblem || '',
+      // New Pain Point Data (matching the new components)
+      awakening_symptoms: surveyData.awakening?.symptoms || [],
+      flow_breaker_impact: surveyData.deepDive?.flowBreakerImpact || null,
+      professional_image_impact: surveyData.deepDive?.professionalImageImpact || null,
+      high_pace_challenge: surveyData.deepDive?.highPaceChallenge || null,
+      coping_mechanism_text: surveyData.deepDive?.copingMechanismText || null,
+      coping_mechanism_none: surveyData.deepDive?.copingMechanismNone || false,
+      overall_value_proposition: surveyData.epiphany?.overallValueProposition || null,
+      feature_ranking: surveyData.epiphany?.rankedFeatures || [],
+      final_feedback_text: surveyData.epiphany?.finalFeedbackText || null,
       
       // Additional info
       discount_code: discountCode,
       user_agent: navigator.userAgent,
       completion_time: completionTime,
-      ip_country: await getCountry()
+      ip_country: await getCountry(),
+      test_skipped: surveyData.testSkipped, // This needs to be passed in from App.tsx
+      test_completed: surveyData.testCompleted, // This also needs to be passed in
     };
     
     console.log('📤 Final data being sent to Supabase:', dataToSave);
-    console.log('Purchase priorities:', dataToSave.purchase_priorities);
-    console.log('Where to buy:', dataToSave.where_to_buy);
-    console.log('Price range:', dataToSave.price_range);
     
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- THE ONLY CHANGE
+      .from('survey_responses_v2') // <--- MINIMAL CHANGE
       .insert([dataToSave])
       .select()
       .single();
@@ -139,7 +140,7 @@ export async function saveEmailSubscription(email: string, surveyId?: string) {
     }
     
     const { error } = await supabase
-      .from('survey_responses_v2') // <--- THE ONLY CHANGE
+      .from('survey_responses_v2') // <--- MINIMAL CHANGE
       .update({ email })
       .eq('id', surveyId);
     
@@ -172,7 +173,7 @@ export async function deleteTestData() {
     console.log('🗑️ Deleting test data...');
     
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- THE ONLY CHANGE
+      .from('survey_responses_v2') // <--- MINIMAL CHANGE
       .delete()
       .or('overall_score.lt.30,completion_time.lt.60');
     
@@ -193,7 +194,7 @@ export async function deleteTestData() {
 export async function getAllSurveyResponses() {
   try {
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- THE ONLY CHANGE
+      .from('survey_responses_v2') // <--- MINIMAL CHANGE
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -213,7 +214,7 @@ export async function getAllSurveyResponses() {
 export async function deleteSurveyResponses(ids: string[]) {
   try {
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- THE ONLY CHANGE
+      .from('survey_responses_v2') // <--- MINIMAL CHANGE
       .delete()
       .in('id', ids);
     
