@@ -110,7 +110,7 @@ export async function saveSurveyData(surveyData: SurveyData, discountCode: strin
     console.log('Price range:', dataToSave.price_range);
     
     const { data, error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- THE ONLY CHANGE
       .insert([dataToSave])
       .select()
       .single();
@@ -139,7 +139,7 @@ export async function saveEmailSubscription(email: string, surveyId?: string) {
     }
     
     const { error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- THE ONLY CHANGE
       .update({ email })
       .eq('id', surveyId);
     
@@ -172,7 +172,7 @@ export async function deleteTestData() {
     console.log('🗑️ Deleting test data...');
     
     const { data, error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- THE ONLY CHANGE
       .delete()
       .or('overall_score.lt.30,completion_time.lt.60');
     
@@ -193,7 +193,7 @@ export async function deleteTestData() {
 export async function getAllSurveyResponses() {
   try {
     const { data, error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- THE ONLY CHANGE
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -213,7 +213,7 @@ export async function getAllSurveyResponses() {
 export async function deleteSurveyResponses(ids: string[]) {
   try {
     const { data, error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- THE ONLY CHANGE
       .delete()
       .in('id', ids);
     
