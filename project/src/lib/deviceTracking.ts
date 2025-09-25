@@ -1,5 +1,9 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
+// הנחתי שקובץ ה-supabase שלך מייצא את הלקוח, אם לא, נצטרך להתאים את זה.
+// בדרך כלל עדיף לייבא אותו ישירות.
+import { supabase } from './supabase'; 
+
 export interface DeviceInfo {
   fingerprint: string;
   ip: string;
@@ -7,15 +11,13 @@ export interface DeviceInfo {
   isMobile: boolean;
 }
 
-// זיהוי סוג המכשיר
+// זיהוי סוג המכשיר (ללא שינוי)
 export const detectDevice = (): { type: 'mobile' | 'tablet' | 'desktop'; isMobile: boolean } => {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform.toLowerCase();
   
-  // בדיקה למובייל
   const isMobile = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
   
-  // בדיקה לטאבלט
   const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent) || 
                    (platform === 'macintel' && navigator.maxTouchPoints > 1);
   
@@ -24,7 +26,7 @@ export const detectDevice = (): { type: 'mobile' | 'tablet' | 'desktop'; isMobil
   return { type: 'desktop', isMobile: false };
 };
 
-// קבלת fingerprint של המכשיר
+// קבלת fingerprint של המכשיר (ללא שינוי)
 export const getDeviceFingerprint = async (): Promise<string> => {
   try {
     const fp = await FingerprintJS.load();
@@ -32,12 +34,11 @@ export const getDeviceFingerprint = async (): Promise<string> => {
     return result.visitorId;
   } catch (error) {
     console.error('Error getting fingerprint:', error);
-    // אם נכשל, נחזיר מזהה אקראי
     return `fallback_${Math.random().toString(36).substr(2, 9)}`;
   }
 };
 
-// קבלת כתובת IP
+// קבלת כתובת IP (ללא שינוי)
 export const getIPAddress = async (): Promise<string> => {
   try {
     const response = await fetch('https://ipapi.co/json/');
@@ -52,10 +53,9 @@ export const getIPAddress = async (): Promise<string> => {
 // בדיקה אם המשתמש כבר מילא את השאלון
 export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<boolean> => {
   try {
-    const { supabase } = await import('./supabase');
-    
+    // *** התיקון כאן ***
     const { data, error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- שונה לטבלה החדשה
       .select('id')
       .or(`device_fingerprint.eq.${fingerprint},ip_address.eq.${ip}`)
       .eq('survey_completed', true)
@@ -76,10 +76,9 @@ export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): 
 // שמירת מידע על המכשיר
 export const saveDeviceInfo = async (surveyId: string, deviceInfo: DeviceInfo): Promise<void> => {
   try {
-    const { supabase } = await import('./supabase');
-    
+    // *** והתיקון כאן ***
     const { error } = await supabase
-      .from('survey_responses')
+      .from('survey_responses_v2') // <--- שונה לטבלה החדשה
       .update({
         ip_address: deviceInfo.ip,
         device_fingerprint: deviceInfo.fingerprint,
