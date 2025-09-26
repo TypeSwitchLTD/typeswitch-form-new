@@ -62,8 +62,11 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
   const [lastLanguage, setLastLanguage] = useState<'hebrew' | 'arabic' | 'english' | 'russian' | null>(null);
   const [allMistakes, setAllMistakes] = useState<Set<number>>(new Set());
   const [correctedMistakes, setCorrectedMistakes] = useState<Set<number>>(new Set());
-  const [punctuationMistakes, setPunctuationMistakes] = useState(0);
-  const [languageErrors, setLanguageErrors] = useState(0);
+  
+  // FIXED: Separate counters for real-time tracking
+  const [realTimeLanguageErrors, setRealTimeLanguageErrors] = useState(0);
+  const [realTimePunctuationErrors, setRealTimePunctuationErrors] = useState(0);
+  
   const [cheatingDetected, setCheatingDetected] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -123,8 +126,8 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     setAllMistakes(new Set());
     setCorrectedMistakes(new Set());
     setLastLanguage(null);
-    setPunctuationMistakes(0);
-    setLanguageErrors(0);
+    setRealTimeLanguageErrors(0);
+    setRealTimePunctuationErrors(0);
     setCheatingDetected(false);
     setWarningShown(false);
     textareaRef.current?.focus();
@@ -216,6 +219,51 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     }
   };
 
+  const isPunctuationConfusion = (expected: string, actual: string): boolean => {
+    return punctuationConfusions.some(([a, b]) => 
+      (expected === a && actual === b) || (expected === b && actual === a)
+    );
+  };
+
+  // FIXED: Function for final text comparison (used only for final accuracy)
+  const detectFinalErrors = (input: string): ErrorDetail[] => {
+    const errors: ErrorDetail[] = [];
+    const normalizedInput = normalizeText(input);
+    const expectedChars = normalizedExerciseText.split('');
+    const actualChars = normalizedInput.split('');
+
+    for (let i = 0; i < actualChars.length; i++) {
+      if (i >= expectedChars.length) break;
+      
+      const expected = expectedChars[i];
+      const actual = actualChars[i];
+
+      if (expected !== actual) {
+        let errorType: 'language' | 'punctuation' | 'typo' = 'typo';
+        
+        const expectedLang = detectLanguage(expected);
+        const actualLang = detectLanguage(actual);
+        
+        if (expectedLang && actualLang && expectedLang !== actualLang) {
+          errorType = 'language';
+        }
+        else if (/[.,!?;:\-(){}[\]"'•%/\\–_]/.test(expected) || /[.,!?;:\-(){}[\]"'•%/\\–_]/.test(actual)) {
+          errorType = 'punctuation';
+        }
+
+        errors.push({
+          position: i,
+          expected,
+          actual,
+          type: errorType,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    return errors;
+  };
+
   useEffect(() => {
     resetExerciseState();
     return cleanup;
@@ -245,58 +293,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     return cleanup;
   }, []);
 
-  const isPunctuationConfusion = (expected: string, actual: string): boolean => {
-    return punctuationConfusions.some(([a, b]) => 
-      (expected === a && actual === b) || (expected === b && actual === a)
-    );
-  };
-
-  const detectErrors = (input: string): ErrorDetail[] => {
-    const errors: ErrorDetail[] = [];
-    const normalizedInput = normalizeText(input);
-    const expectedChars = normalizedExerciseText.split('');
-    const actualChars = normalizedInput.split('');
-    let localPunctuationMistakes = 0;
-    let localLanguageErrors = 0;
-
-    for (let i = 0; i < actualChars.length; i++) {
-      if (i >= expectedChars.length) break;
-      
-      const expected = expectedChars[i];
-      const actual = actualChars[i];
-
-      if (expected !== actual) {
-        let errorType: 'language' | 'punctuation' | 'typo' = 'typo';
-        
-        const expectedLang = detectLanguage(expected);
-        const actualLang = detectLanguage(actual);
-        
-        if (expectedLang && actualLang && expectedLang !== actualLang) {
-          errorType = 'language';
-          localLanguageErrors++;
-        }
-        else if (/[.,!?;:\-(){}[\]"'•%/\\–_]/.test(expected) || /[.,!?;:\-(){}[\]"'•%/\\–_]/.test(actual)) {
-          errorType = 'punctuation';
-          if (isPunctuationConfusion(expected, actual)) {
-            localPunctuationMistakes++;
-          }
-        }
-
-        errors.push({
-          position: i,
-          expected,
-          actual,
-          type: errorType,
-          timestamp: Date.now()
-        });
-      }
-    }
-
-    setPunctuationMistakes(localPunctuationMistakes);
-    setLanguageErrors(localLanguageErrors);
-    return errors;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (warningShown) return;
     
@@ -308,8 +304,8 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     if (newValue.length < oldValue.length) {
       setDeletions(prev => prev + (oldValue.length - newValue.length));
       
-      const oldErrors = detectErrors(oldValue);
-      const newErrors = detectErrors(newValue);
+      const oldErrors = detectFinalErrors(oldValue);
+      const newErrors = detectFinalErrors(newValue);
       
       const oldErrorPositions = new Set(oldErrors.map(e => e.position));
       const newErrorPositions = new Set(newErrors.map(e => e.position));
@@ -337,12 +333,27 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         setLastLanguage(currentLang);
       }
 
+      // FIXED: Real-time error tracking
       const normalizedNew = normalizeText(newValue);
       const position = normalizedNew.length - 1;
       const expectedChar = normalizedExerciseText[position];
       
       if (expectedChar && normalizedNew[position] !== expectedChar) {
         setAllMistakes(prev => new Set(prev).add(position));
+        
+        // FIXED: Check for language error in real-time
+        const expectedLang = detectLanguage(expectedChar);
+        const actualLang = detectLanguage(normalizedNew[position]);
+        
+        if (expectedLang && actualLang && expectedLang !== actualLang) {
+          setRealTimeLanguageErrors(prev => prev + 1);
+        }
+        // FIXED: Check for punctuation error in real-time
+        else if (/[.,!?;:\-(){}[\]"'•%/\\–_]/.test(expectedChar) || /[.,!?;:\-(){}[\]"'•%/\\–_]/.test(normalizedNew[position])) {
+          if (isPunctuationConfusion(expectedChar, normalizedNew[position])) {
+            setRealTimePunctuationErrors(prev => prev + 1);
+          }
+        }
       }
       
       checkLanguageConsistency(newValue);
@@ -362,9 +373,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
 
   const calculateMetrics = (): TypingMetrics => {
     const normalizedInput = normalizeText(userInput);
-    const errors = detectErrors(userInput);
-    const languageErrorsFromDetect = errors.filter(e => e.type === 'language').length;
-    const punctuationErrorsFromDetect = errors.filter(e => e.type === 'punctuation').length;
+    const finalErrors = detectFinalErrors(userInput);
     
     const corrections = correctedMistakes.size;
     
@@ -379,7 +388,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     wpm = Math.max(0, Math.min(150, wpm));
     
     const totalChars = normalizedInput.length;
-    const correctChars = Math.max(0, totalChars - errors.length);
+    const correctChars = Math.max(0, totalChars - finalErrors.length);
     let accuracy = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
     
     if (cheatingDetected) {
@@ -392,12 +401,12 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
       : 0;
     
     const frustrationFactors = [
-      Math.min(2, errors.length * 0.15),
+      Math.min(2, finalErrors.length * 0.15),
       Math.min(2, allMistakes.size * 0.1),
       Math.min(1.5, deletions * 0.1),
       Math.min(1, corrections * 0.03),
       Math.min(1.5, languageSwitches * 0.15),
-      Math.min(1, punctuationMistakes * 0.15),
+      Math.min(1, realTimePunctuationErrors * 0.15),
       averageDelay > 3000 ? 1.5 : (averageDelay > 2000 ? 0.75 : 0),
       cheatingDetected ? 3 : 0
     ];
@@ -407,16 +416,16 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     );
 
     return {
-      totalErrors: errors.length,
-      languageErrors: languageErrorsFromDetect,
-      punctuationErrors: punctuationErrorsFromDetect,
+      totalErrors: finalErrors.length,
+      languageErrors: realTimeLanguageErrors, // FIXED: Use real-time counter
+      punctuationErrors: realTimePunctuationErrors, // FIXED: Use real-time counter
       deletions,
       corrections,
       languageSwitches,
       averageDelay,
       frustrationScore,
       totalMistakesMade: allMistakes.size,
-      finalErrors: errors.length,
+      finalErrors: finalErrors.length,
       accuracy,
       wpm
     };
@@ -428,7 +437,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     const normalizedInput = normalizeText(userInput);
     const completionRate = (normalizedInput.length / normalizedExerciseText.length) * 100;
     
-    // CHANGED: Now requires 60% instead of 50%
     if (completionRate < 60) {
       alert('Please type at least 60% of the text to continue.');
       return;
@@ -448,7 +456,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         text: exercise.text,
         userInput,
         timeSpent: Date.now() - startTime,
-        errors: detectErrors(userInput),
+        errors: detectFinalErrors(userInput),
         deletions,
         corrections: metrics.corrections,
         languageSwitches,
@@ -561,6 +569,10 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-500">
             <span>Characters: {normalizeText(userInput).length} / {normalizedExerciseText.length}</span>
+            {/* DEBUG INFO - Remove in production */}
+            <div className="text-xs mt-1">
+              Lang Errors: {realTimeLanguageErrors} | Punct Errors: {realTimePunctuationErrors}
+            </div>
           </div>
           
           <button
