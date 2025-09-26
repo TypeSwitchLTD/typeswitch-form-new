@@ -20,128 +20,183 @@ import {
   DeviceInfo
 } from './lib/deviceTracking';
 
-// Centralized scoring function
-export const calculateOverallScore = (metrics: TypingMetrics): number => {
-  let score = 100;
-
-  if (metrics.wpm < 20) score -= 30;
-  else if (metrics.wpm < 30) score -= 25;
-  else if (metrics.wpm < 40) score -= 18;
-  else if (metrics.wpm < 50) score -= 10;
-  else if (metrics.wpm < 60) score -= 5;
-
-  if (metrics.accuracy < 70) score -= 30;
-  else if (metrics.accuracy < 80) score -= 25;
-  else if (metrics.accuracy < 85) score -= 20;
-  else if (metrics.accuracy < 90) score -= 15;
-  else if (metrics.accuracy < 95) score -= 10;
-  else if (metrics.accuracy < 98) score -= 5;
-
-  if (metrics.languageSwitches > 20) score -= 15;
-  else if (metrics.languageSwitches > 15) score -= 12;
-  else if (metrics.languageSwitches > 10) score -= 8;
-  else if (metrics.languageSwitches > 5) score -= 4;
-
-  if (metrics.totalMistakesMade > 80) score -= 15;
-  else if (metrics.totalMistakesMade > 60) score -= 12;
-  else if (metrics.totalMistakesMade > 40) score -= 8;
-  else if (metrics.totalMistakesMade > 20) score -= 4;
-
-  if (metrics.frustrationScore > 8) score -= 15;
-  else if (metrics.frustrationScore > 6) score -= 12;
-  else if (metrics.frustrationScore > 4) score -= 8;
-  else if (metrics.frustrationScore > 2) score -= 4;
-
-  return Math.max(1, Math.min(100, score));
+// NEW SCORING ALGORITHM - 50% Errors, 20% Completion, 20% Speed, 10% Other
+export const calculateOverallScore = (metrics: TypingMetrics, completionRate: number = 100): number => {
+  let score = 0;
+  
+  // 1. ERRORS COMPONENT (50 points max)
+  let errorScore = 50;
+  
+  // Language errors (most critical) - 20 points
+  if (metrics.languageErrors > 15) errorScore -= 20;
+  else if (metrics.languageErrors > 10) errorScore -= 15;
+  else if (metrics.languageErrors > 7) errorScore -= 12;
+  else if (metrics.languageErrors > 5) errorScore -= 9;
+  else if (metrics.languageErrors > 3) errorScore -= 6;
+  else if (metrics.languageErrors > 1) errorScore -= 3;
+  
+  // Punctuation errors - 10 points
+  if (metrics.punctuationErrors > 10) errorScore -= 10;
+  else if (metrics.punctuationErrors > 7) errorScore -= 8;
+  else if (metrics.punctuationErrors > 5) errorScore -= 6;
+  else if (metrics.punctuationErrors > 3) errorScore -= 4;
+  else if (metrics.punctuationErrors > 1) errorScore -= 2;
+  
+  // Letter errors - 10 points
+  const letterErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
+  if (letterErrors > 20) errorScore -= 10;
+  else if (letterErrors > 15) errorScore -= 8;
+  else if (letterErrors > 10) errorScore -= 6;
+  else if (letterErrors > 7) errorScore -= 4;
+  else if (letterErrors > 4) errorScore -= 2;
+  
+  // Multiple deletions penalty - 10 points
+  if (metrics.deletions > 30) errorScore -= 10;
+  else if (metrics.deletions > 20) errorScore -= 8;
+  else if (metrics.deletions > 15) errorScore -= 6;
+  else if (metrics.deletions > 10) errorScore -= 4;
+  else if (metrics.deletions > 5) errorScore -= 2;
+  
+  score += Math.max(0, errorScore);
+  
+  // 2. COMPLETION COMPONENT (20 points max)
+  let completionScore = 0;
+  if (completionRate >= 100) completionScore = 20;
+  else if (completionRate >= 90) completionScore = 18;
+  else if (completionRate >= 80) completionScore = 16;
+  else if (completionRate >= 70) completionScore = 14;
+  else if (completionRate >= 60) completionScore = 12;
+  else completionScore = Math.max(0, (completionRate / 60) * 12);
+  
+  score += completionScore;
+  
+  // 3. SPEED COMPONENT (20 points max)
+  let speedScore = 0;
+  if (metrics.wpm >= 60) speedScore = 20;
+  else if (metrics.wpm >= 50) speedScore = 18;
+  else if (metrics.wpm >= 40) speedScore = 15;
+  else if (metrics.wpm >= 30) speedScore = 12;
+  else if (metrics.wpm >= 20) speedScore = 8;
+  else if (metrics.wpm >= 10) speedScore = 4;
+  else speedScore = 1;
+  
+  score += speedScore;
+  
+  // 4. OTHER FACTORS (10 points max)
+  let otherScore = 10;
+  
+  // Language switches penalty
+  if (metrics.languageSwitches > 15) otherScore -= 4;
+  else if (metrics.languageSwitches > 10) otherScore -= 3;
+  else if (metrics.languageSwitches > 5) otherScore -= 2;
+  
+  // Frustration penalty
+  if (metrics.frustrationScore > 8) otherScore -= 4;
+  else if (metrics.frustrationScore > 6) otherScore -= 3;
+  else if (metrics.frustrationScore > 4) otherScore -= 2;
+  else if (metrics.frustrationScore > 2) otherScore -= 1;
+  
+  // Average delay penalty
+  if (metrics.averageDelay > 3000) otherScore -= 2;
+  else if (metrics.averageDelay > 2000) otherScore -= 1;
+  
+  score += Math.max(0, otherScore);
+  
+  return Math.max(1, Math.min(100, Math.round(score)));
 };
 
-// Score breakdown function
-export const getScoreBreakdown = (metrics: TypingMetrics) => {
+// Calculate wasted time in seconds
+export const calculateWastedTime = (metrics: TypingMetrics): number => {
+  // Estimate time wasted on deletions and corrections
+  const averageTypingSpeed = Math.max(1, metrics.wpm / 12); // chars per second
+  const deletionTime = metrics.deletions * 0.3; // 0.3 seconds per deletion
+  const correctionTime = metrics.corrections * 2; // 2 seconds per correction
+  const languageErrorTime = metrics.languageErrors * 3; // 3 seconds per language error
+  
+  return Math.round(deletionTime + correctionTime + languageErrorTime);
+};
+
+// Score breakdown function with new algorithm
+export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number = 100) => {
   const breakdown = [];
-  let totalPenalty = 0;
-
-  let wpmPenalty = 0;
-  if (metrics.wpm < 20) wpmPenalty = 30;
-  else if (metrics.wpm < 30) wpmPenalty = 25;
-  else if (metrics.wpm < 40) wpmPenalty = 18;
-  else if (metrics.wpm < 50) wpmPenalty = 10;
-  else if (metrics.wpm < 60) wpmPenalty = 5;
-
-  if (wpmPenalty > 0) {
+  
+  // Error breakdown
+  let errorPenalty = 0;
+  if (metrics.languageErrors > 1) {
+    const penalty = Math.min(20, metrics.languageErrors * 2);
+    errorPenalty += penalty;
+    breakdown.push({
+      category: 'Language Errors',
+      penalty,
+      reason: `${metrics.languageErrors} wrong language characters`
+    });
+  }
+  
+  if (metrics.punctuationErrors > 1) {
+    const penalty = Math.min(10, metrics.punctuationErrors);
+    errorPenalty += penalty;
+    breakdown.push({
+      category: 'Punctuation Errors', 
+      penalty,
+      reason: `${metrics.punctuationErrors} punctuation mistakes`
+    });
+  }
+  
+  if (metrics.deletions > 5) {
+    const penalty = Math.min(10, Math.floor(metrics.deletions / 3));
+    errorPenalty += penalty;
+    breakdown.push({
+      category: 'Excessive Deletions',
+      penalty,
+      reason: `${metrics.deletions} deletions made`
+    });
+  }
+  
+  // Completion penalty
+  if (completionRate < 100) {
+    const penalty = Math.round((100 - completionRate) * 0.2);
+    breakdown.push({
+      category: 'Incomplete Text',
+      penalty,
+      reason: `Only ${completionRate.toFixed(0)}% completed`
+    });
+  }
+  
+  // Speed penalty
+  if (metrics.wpm < 40) {
+    const penalty = Math.min(15, Math.max(0, 40 - metrics.wpm));
     breakdown.push({
       category: 'Typing Speed',
-      penalty: wpmPenalty,
+      penalty,
       reason: `${metrics.wpm} WPM (below average)`
     });
-    totalPenalty += wpmPenalty;
   }
-
-  let accuracyPenalty = 0;
-  if (metrics.accuracy < 70) accuracyPenalty = 30;
-  else if (metrics.accuracy < 80) accuracyPenalty = 25;
-  else if (metrics.accuracy < 85) accuracyPenalty = 20;
-  else if (metrics.accuracy < 90) accuracyPenalty = 15;
-  else if (metrics.accuracy < 95) accuracyPenalty = 10;
-  else if (metrics.accuracy < 98) accuracyPenalty = 5;
-
-  if (accuracyPenalty > 0) {
-    breakdown.push({
-      category: 'Accuracy',
-      penalty: accuracyPenalty,
-      reason: `${metrics.accuracy}% accuracy`
-    });
-    totalPenalty += accuracyPenalty;
-  }
-
-  let switchPenalty = 0;
-  if (metrics.languageSwitches > 20) switchPenalty = 15;
-  else if (metrics.languageSwitches > 15) switchPenalty = 12;
-  else if (metrics.languageSwitches > 10) switchPenalty = 8;
-  else if (metrics.languageSwitches > 5) switchPenalty = 4;
-
-  if (switchPenalty > 0) {
+  
+  // Other penalties
+  if (metrics.languageSwitches > 5) {
+    const penalty = Math.min(4, Math.floor(metrics.languageSwitches / 3));
     breakdown.push({
       category: 'Rhythm Disruption',
-      penalty: switchPenalty,
-      reason: `${metrics.languageSwitches} interruptions`
+      penalty,
+      reason: `${metrics.languageSwitches} language switches`
     });
-    totalPenalty += switchPenalty;
   }
-
-  let mistakePenalty = 0;
-  if (metrics.totalMistakesMade > 80) mistakePenalty = 15;
-  else if (metrics.totalMistakesMade > 60) mistakePenalty = 12;
-  else if (metrics.totalMistakesMade > 40) mistakePenalty = 8;
-  else if (metrics.totalMistakesMade > 20) mistakePenalty = 4;
-
-  if (mistakePenalty > 0) {
-    breakdown.push({
-      category: 'Total Mistakes',
-      penalty: mistakePenalty,
-      reason: `${metrics.totalMistakesMade} mistakes`
-    });
-    totalPenalty += mistakePenalty;
-  }
-
-  let frustrationPenalty = 0;
-  if (metrics.frustrationScore > 8) frustrationPenalty = 15;
-  else if (metrics.frustrationScore > 6) frustrationPenalty = 12;
-  else if (metrics.frustrationScore > 4) frustrationPenalty = 8;
-  else if (metrics.frustrationScore > 2) frustrationPenalty = 4;
-
-  if (frustrationPenalty > 0) {
+  
+  if (metrics.frustrationScore > 4) {
+    const penalty = Math.min(4, metrics.frustrationScore - 4);
     breakdown.push({
       category: 'Flow Disruption',
-      penalty: frustrationPenalty,
-      reason: `${metrics.frustrationScore}/10 disruption level`
+      penalty,
+      reason: `${metrics.frustrationScore}/10 frustration level`
     });
-    totalPenalty += frustrationPenalty;
   }
-
+  
+  const totalPenalty = breakdown.reduce((sum, item) => sum + item.penalty, 0);
+  
   return {
     breakdown,
     totalPenalty,
-    finalScore: 100 - totalPenalty
+    finalScore: Math.max(1, 100 - totalPenalty)
   };
 };
 
@@ -237,7 +292,7 @@ function App() {
         ]);
       } catch (err) {
         console.error("Device check failed or timed out:", err);
-        setAlreadySubmitted(false); // Default to not submitted on error to not block user
+        setAlreadySubmitted(false);
       } finally {
         setCheckingSubmission(false);
       }
@@ -297,7 +352,7 @@ function App() {
   };
 
   const handleTryTest = () => {
-    setRetakeSourceScreen(currentScreen); // Store where the retake was initiated from
+    setRetakeSourceScreen(currentScreen);
     setShowLanguageSelect(true);
   };
 
@@ -313,7 +368,7 @@ function App() {
       demographics: { ...prev.demographics, languages: [language] }
     }));
 
-    setCurrentScreen(3); // Go directly to exercise screen
+    setCurrentScreen(3);
   };
 
   const handleNext = async (data?: any) => {
@@ -329,7 +384,7 @@ function App() {
           updatedSurveyData = {
             ...updatedSurveyData,
             exercises: [...updatedSurveyData.exercises, exercise],
-            metrics: exercise.metrics // For retakes, we only care about the latest metrics
+            metrics: exercise.metrics
           };
           setTestCompleted(true);
         } else {
@@ -418,8 +473,6 @@ function App() {
       if (adminClickTimer.current) clearTimeout(adminClickTimer.current);
     };
   }, []);
-
-  // --- RENDER LOGIC ---
 
   if (checkingSubmission) {
     return (
@@ -522,14 +575,20 @@ function App() {
                Skip to Survey (Completed)
              </button>
            </div>
-         <div className="mt-6 pt-6 border-t">
-           <p className="text-xs text-gray-400">
-             If you think this is a mistake, please contact us.
-           </p>
+           
+           {/* ADD DISCOUNT CODE DISPLAY */}
+           <div className="mt-6 pt-6 border-t">
+             <p className="text-sm text-gray-600 mb-2">Your discount code:</p>
+             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+               <code className="text-green-800 font-mono font-bold">{discountCode}</code>
+             </div>
+             <p className="text-xs text-gray-500 mt-2">
+               Save this code for future use. Contact us with this code if you need support.
+             </p>
+           </div>
          </div>
        </div>
-     </div>
-   );
+     );
  }
 
   const renderScreen = () => {
@@ -540,10 +599,41 @@ function App() {
       case 'beforeExercise':
         return (
           <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-3xl">
               <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">Ready for the Typing Exercise?</h2>
               <p className="text-gray-600 text-center mb-6">A quick exercise to understand your typing patterns.</p>
-              <div className="bg-yellow-50 rounded-lg p-4 mb-6"><p className="text-yellow-800 font-medium">Tip: Type naturally as you normally would - don't try to be perfect!</p></div>
+              
+              {/* NEW SCORING BREAKDOWN */}
+              <div className="bg-blue-50 rounded-xl p-6 mb-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">How You'll Be Scored</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">50%</div>
+                    <div className="text-sm text-gray-700 font-medium">Errors</div>
+                    <div className="text-xs text-gray-500">Language mistakes, punctuation, deletions</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">20%</div>
+                    <div className="text-sm text-gray-700 font-medium">Completion</div>
+                    <div className="text-xs text-gray-500">How much text you finish</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">20%</div>
+                    <div className="text-sm text-gray-700 font-medium">Speed</div>
+                    <div className="text-xs text-gray-500">Words per minute</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">10%</div>
+                    <div className="text-sm text-gray-700 font-medium">Flow</div>
+                    <div className="text-xs text-gray-500">Rhythm and consistency</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-yellow-50 rounded-lg p-4 mb-6">
+                <p className="text-yellow-800 font-medium">Tip: Type naturally as you normally would - don't try to be perfect!</p>
+              </div>
+              
               <div className="flex gap-3 mt-8">
                 {isMobileDevice ? (
                   <div className="w-full bg-orange-100 border-2 border-orange-300 rounded-lg p-4 text-center">
