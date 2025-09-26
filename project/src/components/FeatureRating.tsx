@@ -35,7 +35,10 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
     }));
   }
 
-  const isFormValid = deepDive.flowBreakerImpact && deepDive.professionalImageImpact && deepDive.highPaceChallenge && (deepDive.copingMechanismNone || deepDive.copingMechanismText.length > 0);
+  // FIXED: Added validation for Stage 1 - must select at least one symptom
+  const isStage1Valid = awakeningSymptoms.length > 0;
+  const isStage2Valid = deepDive.flowBreakerImpact && deepDive.professionalImageImpact && deepDive.highPaceChallenge && (deepDive.copingMechanismNone || deepDive.copingMechanismText.length > 0);
+  const isFormValid = isStage1Valid && isStage2Valid;
 
   const handleSubmit = () => {
     if (isFormValid) {
@@ -58,28 +61,117 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
         <div className="mb-10">
             <div className="p-4 bg-blue-50 rounded-lg mb-6">
                 <h3 className="text-2xl font-bold text-blue-800">Stage 1: The Awakening</h3>
-                <p className="text-base text-gray-700 mt-1">Think about a typical workday. Which of the following feel familiar? (Check all that apply)</p>
+                <p className="text-base text-gray-700 mt-1">Think about a typical workday. Which of the following feel familiar? <span className="text-red-500 font-semibold">(Check at least one that applies)</span></p>
             </div>
+            
+            {/* STAGE 1 VALIDATION WARNING */}
+            {!isStage1Valid && awakeningSymptoms.length === 0 && (
+              <div className="mb-4 p-3 bg-orange-100 border border-orange-400 rounded-lg">
+                <p className="text-orange-800 font-medium text-sm">
+                  Please select at least one option from Stage 1 to continue.
+                </p>
+              </div>
+            )}
             
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">Preventive Habits (Before you type...)</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('glance_icon')} className="mt-1 mr-3 h-5 w-5"/><span>I glance at the language icon (e.g., ENG/HEB) to be sure.</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('extra_shortcut')} className="mt-1 mr-3 h-5 w-5"/><span>I use the language shortcut (Alt+Shift) a few times "just in case".</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('type_and_check')} className="mt-1 mr-3 h-5 w-5"/><span>I type a word or two, then pause to see if they're in the right language.</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('glance_icon')} 
+                      checked={awakeningSymptoms.includes('glance_icon')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I glance at the language icon (e.g., ENG/HEB) to be sure.</span>
+                  </label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('extra_shortcut')} 
+                      checked={awakeningSymptoms.includes('extra_shortcut')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I use the language shortcut (Alt+Shift) a few times "just in case".</span>
+                  </label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('type_and_check')} 
+                      checked={awakeningSymptoms.includes('type_and_check')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I type a word or two, then pause to see if they're in the right language.</span>
+                  </label>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">Micro-Corrections</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('delete_word')} className="mt-1 mr-3 h-5 w-5"/><span>I find myself deleting an entire word typed in the wrong language.</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('wrong_punctuation')} className="mt-1 mr-3 h-5 w-5"/><span>I type a comma or period, but get a letter from the other language instead.</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('sent_wrong_lang')} className="mt-1 mr-3 h-5 w-5"/><span>I've sent a quick chat message, only to realize after that it was in the wrong language.</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('delete_word')} 
+                      checked={awakeningSymptoms.includes('delete_word')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I find myself deleting an entire word typed in the wrong language.</span>
+                  </label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('wrong_punctuation')} 
+                      checked={awakeningSymptoms.includes('wrong_punctuation')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I type a comma or period, but get a letter from the other language instead.</span>
+                  </label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('sent_wrong_lang')} 
+                      checked={awakeningSymptoms.includes('sent_wrong_lang')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I've sent a quick chat message, only to realize after that it was in the wrong language.</span>
+                  </label>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">Mental Effort & Existing Solutions</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('mental_effort')} className="mt-1 mr-3 h-5 w-5"/><span>My brain has to actively remember the current language when switching windows.</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('shortcut_conflict')} className="mt-1 mr-3 h-5 w-5"/><span>I avoid using certain app shortcuts because they conflict with the language-switching shortcut.</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('use_3rd_party')} className="mt-1 mr-3 h-5 w-5"/><span>I have searched for or currently use an external solution (software or hardware) to help.</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('none_of_above')} className="mt-1 mr-3 h-5 w-5"/><span>None of the above. I don't really have a solution and just deal with it.</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('mental_effort')} 
+                      checked={awakeningSymptoms.includes('mental_effort')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>My brain has to actively remember the current language when switching windows.</span>
+                  </label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('shortcut_conflict')} 
+                      checked={awakeningSymptoms.includes('shortcut_conflict')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I avoid using certain app shortcuts because they conflict with the language-switching shortcut.</span>
+                  </label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('use_3rd_party')} 
+                      checked={awakeningSymptoms.includes('use_3rd_party')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>I have searched for or currently use an external solution (software or hardware) to help.</span>
+                  </label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      onChange={() => toggleSymptom('none_of_above')} 
+                      checked={awakeningSymptoms.includes('none_of_above')}
+                      className="mt-1 mr-3 h-5 w-5"
+                    />
+                    <span>None of the above. I don't really have a solution and just deal with it.</span>
+                  </label>
               </div>
             </div>
         </div>
@@ -125,13 +217,29 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
             
             <div className="bg-gray-50 rounded-lg p-4 border">
                  <p className="font-semibold text-base mb-3">Do you have a specific method, habit, or "trick" you've adopted to minimize multilingual keyboard errors?</p>
-                 <textarea value={deepDive.copingMechanismText} onChange={(e) => handleDeepDiveChange('copingMechanismText', e.target.value)} disabled={deepDive.copingMechanismNone} placeholder="e.g., I always check the icon color, I installed software X, I deliberately type slower..." className="w-full mt-2 p-3 border rounded-lg text-base disabled:bg-gray-100"/>
-                 <label className="flex items-center mt-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" checked={deepDive.copingMechanismNone} onChange={handleCopingMechanismCheckbox} className="mr-3 h-5 w-5"/><span>I don't have a specific method or solution.</span></label>
+                 <textarea 
+                   value={deepDive.copingMechanismText} 
+                   onChange={(e) => handleDeepDiveChange('copingMechanismText', e.target.value)} 
+                   disabled={deepDive.copingMechanismNone} 
+                   placeholder="e.g., I always check the icon color, I installed software X, I deliberately type slower..." 
+                   className="w-full mt-2 p-3 border rounded-lg text-base disabled:bg-gray-100"
+                 />
+                 <label className="flex items-center mt-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                   <input 
+                     type="checkbox" 
+                     checked={deepDive.copingMechanismNone} 
+                     onChange={handleCopingMechanismCheckbox} 
+                     className="mr-3 h-5 w-5"
+                   />
+                   <span>I don't have a specific method or solution.</span>
+                 </label>
             </div>
         </div>
 
         <button onClick={handleSubmit} disabled={!isFormValid} className="mt-8 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-          {isFormValid ? 'Continue' : 'Please complete all questions in Stage 2'}
+          {!isStage1Valid ? 'Please select at least one option in Stage 1' : 
+           !isStage2Valid ? 'Please complete all questions in Stage 2' : 
+           'Continue'}
         </button>
       </div>
     </div>
