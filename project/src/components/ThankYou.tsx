@@ -29,7 +29,6 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
   };
 
   const handleTryTestClick = () => {
-    // FIXED: No more survey completion check - user can always try the test
     if (onTryTest) {
       onTryTest();
     }
@@ -98,7 +97,6 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
 
         {/* Share Results OR Try Test Section */}
         {!skippedTest ? (
-          // User completed the test - show share option
           <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
               Show Off Your Typing Skills!
@@ -117,7 +115,6 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
             </button>
           </div>
         ) : (
-          // User skipped the test - show try test option
           <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
               Want to Try the Typing Test?
@@ -140,7 +137,7 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
                 className="w-full bg-gray-200 text-gray-400 py-3 px-6 rounded-lg font-semibold cursor-not-allowed flex items-center justify-center opacity-50"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a9.001 9.001 0 01-7.432 0m9.032-4.026A9.001 9.001 0 0112 3c-4.474 0-8.268 3.12-9.032 7.326m0 0A9.001 9.001 0 0012 21c4.474 0 8.268-3.12 9.032-7.326" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a9.001 9.001 0 01-7.432 0m9.032-4.026A9.001 9.001 0 0112 3c-4.474 0-8.268 3.12-9.032 7.326m0 0A9.001 9.001 0 0012 21c4.474 0 8.268 3.12 9.032-7.326" />
                 </svg>
                 Share Results (Complete test first)
               </button>
