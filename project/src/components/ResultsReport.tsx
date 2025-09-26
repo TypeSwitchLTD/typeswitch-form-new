@@ -1,13 +1,13 @@
 import React from 'react';
 import { TypingMetrics } from '../types';
-import { calculateOverallScore, getScoreBreakdown } from '../App';
+import { calculateOverallScore, getScoreBreakdown, calculateWastedTime } from '../App';
 
 interface Props {
   metrics: TypingMetrics;
   onNext: () => void;
   onShare: () => void;
   showBreakdown?: boolean;
-  isRetake?: boolean; // NEW: Track if this is a retake
+  isRetake?: boolean;
 }
 
 const ResultsReport: React.FC<Props> = ({ 
@@ -17,8 +17,16 @@ const ResultsReport: React.FC<Props> = ({
   showBreakdown = true,
   isRetake = false 
 }) => {
-  const overallScore = calculateOverallScore(metrics);
-  const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics) : null;
+  const completionRate = (metrics as any).completionRate || 100;
+  const overallScore = calculateOverallScore(metrics, completionRate);
+  const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
+  const wastedTimeSeconds = calculateWastedTime(metrics);
+  
+  // Calculate daily, monthly, yearly waste
+  const wastedTimeMinutes = wastedTimeSeconds / 60;
+  const dailyWasteMinutes = wastedTimeMinutes * (9 * 60 / 5); // Assuming 5 minutes of typing per hour in 9-hour workday
+  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // 22 working days
+  const yearlyWasteHours = monthlyWasteHours * 12;
   
   const getScoreLevel = (score: number) => {
     if (score >= 85) return { level: 'Excellent!', color: 'text-green-600', bg: 'bg-green-100' };
@@ -55,11 +63,42 @@ const ResultsReport: React.FC<Props> = ({
               {overallScore}/100
             </div>
             <p className={`text-base font-semibold ${scoreLevel.color}`}>{scoreLevel.level}</p>
+            <p className="text-xs text-gray-600 mt-1">
+              Based on: 50% Errors • 20% Completion • 20% Speed • 10% Flow
+            </p>
             {overallScore < 55 && (
               <p className="text-xs text-gray-600 mt-1">
                 Multilingual typing is challenging - our keyboard can help!
               </p>
             )}
+          </div>
+
+          {/* Wasted Time Analysis - NEW PROMINENT SECTION */}
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border-2 border-red-200">
+            <h3 className="text-lg font-semibold text-red-800 mb-3 text-center">
+              ⏰ Time Lost to Typing Errors
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{wastedTimeSeconds}s</div>
+                <div className="text-xs text-gray-600">This Test</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{dailyWasteMinutes.toFixed(1)}</div>
+                <div className="text-xs text-gray-600">Minutes/Day</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{monthlyWasteHours.toFixed(1)}</div>
+                <div className="text-xs text-gray-600">Hours/Month</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{yearlyWasteHours.toFixed(0)}</div>
+                <div className="text-xs text-gray-600">Hours/Year</div>
+              </div>
+            </div>
+            <p className="text-center text-sm text-red-700 mt-3 font-medium">
+              **You're losing {yearlyWasteHours.toFixed(0)} hours per year to multilingual typing errors!**
+            </p>
           </div>
 
           {/* Main Performance Metrics - SECOND */}
@@ -77,6 +116,41 @@ const ResultsReport: React.FC<Props> = ({
                 {metrics.accuracy || 0}%
               </p>
               <p className="text-xs text-gray-600">After all corrections</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">Text Completed</h3>
+              <p className={`text-2xl font-bold ${completionRate >= 90 ? 'text-green-600' : completionRate >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {completionRate}%
+              </p>
+              <p className="text-xs text-gray-600">Of required text</p>
+            </div>
+          </div>
+
+          {/* Error Breakdown - Enhanced */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">Language Errors</h3>
+              <p className={`text-2xl font-bold ${metrics.languageErrors <= 2 ? 'text-green-600' : metrics.languageErrors <= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {metrics.languageErrors || 0}
+              </p>
+              <p className="text-xs text-gray-600">Wrong language chars</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">Punctuation Errors</h3>
+              <p className={`text-2xl font-bold ${metrics.punctuationErrors <= 2 ? 'text-green-600' : metrics.punctuationErrors <= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {metrics.punctuationErrors || 0}
+              </p>
+              <p className="text-xs text-gray-600">Wrong punctuation</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">Deletions Made</h3>
+              <p className={`text-2xl font-bold ${metrics.deletions <= 10 ? 'text-green-600' : metrics.deletions <= 20 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {metrics.deletions || 0}
+              </p>
+              <p className="text-xs text-gray-600">Backspace presses</p>
             </div>
             
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
@@ -124,22 +198,14 @@ const ResultsReport: React.FC<Props> = ({
 
           {/* Detailed Stats - FOURTH */}
           <div className="bg-gray-50 rounded-lg p-3">
-            <h3 className="font-semibold text-gray-700 mb-2 text-sm">Detailed Statistics</h3>
+            <h3 className="font-semibold text-gray-700 mb-2 text-sm">Additional Statistics</h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Mistakes:</span>
                 <span className="font-semibold">{metrics.totalMistakesMade}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Language Errors:</span>
-                <span className="font-semibold">{metrics.languageErrors}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Deletions:</span>
-                <span className="font-semibold">{metrics.deletions}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Corrections:</span>
+                <span className="text-gray-600">Corrections Made:</span>
                 <span className="font-semibold">{metrics.corrections}</span>
               </div>
               <div className="flex justify-between">
@@ -147,8 +213,8 @@ const ResultsReport: React.FC<Props> = ({
                 <span className="font-semibold">{metrics.languageSwitches}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Punctuation Errors:</span>
-                <span className="font-semibold">{metrics.punctuationErrors}</span>
+                <span className="text-gray-600">Average Delay:</span>
+                <span className="font-semibold">{metrics.averageDelay}ms</span>
               </div>
             </div>
           </div>
