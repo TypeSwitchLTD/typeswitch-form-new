@@ -22,10 +22,11 @@ const ResultsReport: React.FC<Props> = ({
   const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
   const wastedTimeSeconds = calculateWastedTime(metrics);
   
-  // FIXED: Calculate daily, monthly, yearly waste with correct hours/days
-  const wastedTimeMinutes = wastedTimeSeconds / 60;
-  const dailyWasteMinutes = wastedTimeMinutes * (8 * 60 / 5); // FIXED: 8 hours instead of 9, assuming 5 minutes of typing per hour
-  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // FIXED: 22 working days instead of approximate
+  // Calculate realistic daily, monthly, yearly waste
+  const testDurationMinutes = Math.max(1, (Date.now() - (window as any).exerciseStartTime) / 60000) || 5; // Fallback to 5 if not available
+  const wastedSecondsPerMinute = wastedTimeSeconds / testDurationMinutes;
+  const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60; // 90 minutes daily multilingual typing
+  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // 22 working days
   const yearlyWasteHours = monthlyWasteHours * 12;
   
   const getScoreLevel = (score: number) => {
@@ -85,7 +86,7 @@ const ResultsReport: React.FC<Props> = ({
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{dailyWasteMinutes.toFixed(1)}</div>
-                <div className="text-xs text-gray-600">Minutes/8 hour Working Day</div>
+                <div className="text-xs text-gray-600">Minutes/90 min daily</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{monthlyWasteHours.toFixed(1)}</div>
@@ -98,7 +99,10 @@ const ResultsReport: React.FC<Props> = ({
             </div>
             <p className="text-center text-sm text-red-700 mt-3 font-medium">
               **You're losing {yearlyWasteHours.toFixed(0)} hours per year to multilingual typing errors!**
-            </p>
+              </p>
+              <p className="text-center text-xs text-gray-600 mt-1">
+              Based on 90 minutes daily multilingual typing with similar error rates
+              </p>
           </div>
 
           {/* Main Performance Metrics - SECOND */}
