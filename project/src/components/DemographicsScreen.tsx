@@ -11,7 +11,8 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     occupation: '',
     keyboardType: '',
     keyboardTypeOther: '',
-    currentKeyboard: '',
+    currentKeyboard: [] as string[], // Changed to array
+    useMultipleKeyboards: false, // New field
     age: '',
     diagnosis: ''
   });
@@ -39,13 +40,16 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     if (demographics.languages.length > 0 && 
         demographics.hoursTyping && 
         demographics.occupation && 
-        demographics.currentKeyboard &&
+        demographics.currentKeyboard.length > 0 &&
         demographics.age &&
         finalKeyboardType) {
       onNext({ 
         demographics: {
           ...demographics,
-          keyboardType: finalKeyboardType // Send the actual value, not "other"
+          keyboardType: finalKeyboardType,
+          currentKeyboard: demographics.useMultipleKeyboards 
+            ? demographics.currentKeyboard 
+            : [demographics.currentKeyboard[0]]
         }
       });
     }
@@ -58,11 +62,37 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     }));
   };
 
+  const toggleKeyboard = (keyboard: string) => {
+    if (demographics.useMultipleKeyboards) {
+      setDemographics(prev => ({
+        ...prev,
+        currentKeyboard: prev.currentKeyboard.includes(keyboard)
+          ? prev.currentKeyboard.filter(k => k !== keyboard)
+          : prev.currentKeyboard.length < 3 
+            ? [...prev.currentKeyboard, keyboard]
+            : prev.currentKeyboard
+      }));
+    } else {
+      setDemographics(prev => ({
+        ...prev,
+        currentKeyboard: [keyboard]
+      }));
+    }
+  };
+
+  const handleMultipleKeyboardsChange = (checked: boolean) => {
+    setDemographics(prev => ({
+      ...prev,
+      useMultipleKeyboards: checked,
+      currentKeyboard: checked ? prev.currentKeyboard : prev.currentKeyboard.slice(0, 1)
+    }));
+  };
+
   // Check if all required fields are filled
   const isFormValid = demographics.languages.length > 0 && 
                      demographics.hoursTyping && 
                      demographics.occupation && 
-                     demographics.currentKeyboard &&
+                     demographics.currentKeyboard.length > 0 &&
                      demographics.age &&
                      (demographics.keyboardType && (demographics.keyboardType !== 'other' || demographics.keyboardTypeOther));
 
@@ -141,27 +171,52 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               What type of keyboard do you currently use? <span className="text-red-500">*</span>
             </label>
+            
+            {/* Multiple keyboards checkbox */}
+            <div className="mb-3">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={demographics.useMultipleKeyboards}
+                  onChange={(e) => handleMultipleKeyboardsChange(e.target.checked)}
+                  className="mr-2 h-4 w-4"
+                />
+                <span className="text-sm text-gray-600">I use multiple keyboards</span>
+              </label>
+            </div>
+
             <div className="space-y-1">
               {keyboardTypes.map(type => (
                 <button
                   key={type.value}
-                  onClick={() => setDemographics({...demographics, currentKeyboard: type.value})}
+                  onClick={() => toggleKeyboard(type.value)}
+                  disabled={!demographics.useMultipleKeyboards && demographics.currentKeyboard.length > 0 && !demographics.currentKeyboard.includes(type.value)}
                   className={`w-full p-2 rounded-lg transition text-left text-sm ${
-                    demographics.currentKeyboard === type.value
+                    demographics.currentKeyboard.includes(type.value)
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200'
+                      : 'bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                 >
                   {type.label}
+                  {demographics.useMultipleKeyboards && demographics.currentKeyboard.includes(type.value) && (
+                    <span className="ml-2 text-xs">✓</span>
+                  )}
                 </button>
               ))}
             </div>
+            
+            {demographics.useMultipleKeyboards && (
+              <p className="text-xs text-gray-500 mt-1">
+                Select up to 3 keyboards ({demographics.currentKeyboard.length}/3 selected)
+              </p>
+            )}
           </div>
 
           {/* Keyboard layout */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Keyboard layout? <span className="text-red-500">*</span>
+              <span className="text-xs text-gray-500 ml-1">(The physical arrangement of keys on your keyboard)</span>
             </label>
             <select
               value={demographics.keyboardType}
