@@ -102,7 +102,7 @@ const WelcomeScreen: React.FC<Props> = ({ onNext, onAdminClick }) => {
                  <div className="bg-gray-50 p-3 rounded-lg">
                     <div className="text-3xl">⏳</div>
                     <h4 className="font-semibold mt-1">Wasted Time</h4>
-                    <p className="text-xs text-gray-500">Seconds lost on backspacing & corrections.</p>
+                    <p className="text-xs text-gray-500">Estimate hours wasted annually on typing errors.</p>
                 </div>
                  <div className="bg-gray-50 p-3 rounded-lg">
                     <div className="text-3xl">😤</div>
