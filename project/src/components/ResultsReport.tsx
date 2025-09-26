@@ -22,10 +22,10 @@ const ResultsReport: React.FC<Props> = ({
   const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
   const wastedTimeSeconds = calculateWastedTime(metrics);
   
-  // Calculate daily, monthly, yearly waste
+  // FIXED: Calculate daily, monthly, yearly waste with correct hours/days
   const wastedTimeMinutes = wastedTimeSeconds / 60;
-  const dailyWasteMinutes = wastedTimeMinutes * (9 * 60 / 5); // Assuming 5 minutes of typing per hour in 9-hour workday
-  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // 22 working days
+  const dailyWasteMinutes = wastedTimeMinutes * (8 * 60 / 5); // FIXED: 8 hours instead of 9, assuming 5 minutes of typing per hour
+  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // FIXED: 22 working days instead of approximate
   const yearlyWasteHours = monthlyWasteHours * 12;
   
   const getScoreLevel = (score: number) => {
@@ -40,7 +40,7 @@ const ResultsReport: React.FC<Props> = ({
 
   const getWPMLevel = (wpm: number) => {
     if (wpm < 25) return { level: 'Beginner', color: 'text-red-600' };
-    if (wpm < 35) return { level: 'Good Foundation', color: 'text-orange-600' };
+    if (wmp < 35) return { level: 'Good Foundation', color: 'text-orange-600' };
     if (wpm < 45) return { level: 'Average', color: 'text-yellow-600' };
     if (wpm < 60) return { level: 'Above Average', color: 'text-green-600' };
     if (wpm < 80) return { level: 'Fast', color: 'text-green-700' };
@@ -85,11 +85,11 @@ const ResultsReport: React.FC<Props> = ({
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{dailyWasteMinutes.toFixed(1)}</div>
-                <div className="text-xs text-gray-600">Minutes/Day</div>
+                <div className="text-xs text-gray-600">Minutes/8 hour Working Day</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{monthlyWasteHours.toFixed(1)}</div>
-                <div className="text-xs text-gray-600">Hours/Month</div>
+                <div className="text-xs text-gray-600">Hours/22 working days = Month</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{yearlyWasteHours.toFixed(0)}</div>
