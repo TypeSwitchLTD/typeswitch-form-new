@@ -63,6 +63,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
   const [allMistakes, setAllMistakes] = useState<Set<number>>(new Set());
   const [correctedMistakes, setCorrectedMistakes] = useState<Set<number>>(new Set());
   const [punctuationMistakes, setPunctuationMistakes] = useState(0);
+  const [languageErrors, setLanguageErrors] = useState(0);
   const [cheatingDetected, setCheatingDetected] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -123,6 +124,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     setCorrectedMistakes(new Set());
     setLastLanguage(null);
     setPunctuationMistakes(0);
+    setLanguageErrors(0);
     setCheatingDetected(false);
     setWarningShown(false);
     textareaRef.current?.focus();
@@ -137,25 +139,23 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
   };
 
   const detectSuspiciousPattern = (currentInput: string): boolean => {
-    // Check for repeated characters (5+ same chars)
     const last5Chars = currentInput.slice(-5);
     if (last5Chars.length === 5 && new Set(last5Chars).size === 1) {
       handleCheatingDetected('⚠️ Please type the actual text, not the same character repeatedly!');
       return true;
     }
 
-    // Check for keyboard mashing patterns
     const last20Chars = currentInput.slice(-20).toLowerCase();
     const mashingPatterns = [
-      /[שדגכעיחלך]{8,}/,  // Hebrew keyboard mashing
-      /[שגדךלכחףךלדשגחכ]{8,}/,  // The exact pattern you mentioned
-      /[асдфжклэ]{8,}/,   // Russian keyboard mashing
-      /[asdfghjkl]{8,}/,  // English home row
-      /[qwertyuiop]{8,}/, // English top row
-      /[zxcvbnm]{8,}/,    // English bottom row
-      /[;lkjdfsa]{8,}/,   // Random semicolon patterns
-      /([שדגכ])\1{3,}/,   // Hebrew repeated patterns
-      /([асдф])\1{3,}/,   // Russian repeated patterns
+      /[שדגכעיחלך]{8,}/,
+      /[שגדךלכחףךלדשגחכ]{8,}/,
+      /[асдфжклэ]{8,}/,
+      /[asdfghjkl]{8,}/,
+      /[qwertyuiop]{8,}/,
+      /[zxcvbnm]{8,}/,
+      /[;lkjdfsa]{8,}/,
+      /([שדגכ])\1{3,}/,
+      /([асдф])\1{3,}/,
     ];
 
     for (const pattern of mashingPatterns) {
@@ -165,7 +165,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
       }
     }
 
-    // Check for alternating two characters (ababab pattern)
     if (last20Chars.length >= 6) {
       const last6 = last20Chars.slice(-6);
       if (last6[0] === last6[2] && last6[2] === last6[4] &&
@@ -176,7 +175,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
       }
     }
 
-    // Check if no real words in last 30 characters
     const last30 = currentInput.slice(-30);
     const hasVowels = /[aeiouאהוי]/i.test(last30);
     const hasConsonants = /[bcdfghjklmnpqrstvwxyzבגדזחטכלמנספצקרשת]/i.test(last30);
@@ -259,6 +257,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     const expectedChars = normalizedExerciseText.split('');
     const actualChars = normalizedInput.split('');
     let localPunctuationMistakes = 0;
+    let localLanguageErrors = 0;
 
     for (let i = 0; i < actualChars.length; i++) {
       if (i >= expectedChars.length) break;
@@ -274,6 +273,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         
         if (expectedLang && actualLang && expectedLang !== actualLang) {
           errorType = 'language';
+          localLanguageErrors++;
         }
         else if (/[.,!?;:\-(){}[\]"'•%/\\–_]/.test(expected) || /[.,!?;:\-(){}[\]"'•%/\\–_]/.test(actual)) {
           errorType = 'punctuation';
@@ -293,6 +293,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     }
 
     setPunctuationMistakes(localPunctuationMistakes);
+    setLanguageErrors(localLanguageErrors);
     return errors;
   };
 
@@ -321,7 +322,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     }
 
     if (newValue.length > oldValue.length) {
-      // Check for suspicious patterns first
       if (detectSuspiciousPattern(newValue)) {
         return;
       }
@@ -345,7 +345,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         setAllMistakes(prev => new Set(prev).add(position));
       }
       
-      // Check for wrong language
       checkLanguageConsistency(newValue);
     }
 
@@ -364,8 +363,8 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
   const calculateMetrics = (): TypingMetrics => {
     const normalizedInput = normalizeText(userInput);
     const errors = detectErrors(userInput);
-    const languageErrors = errors.filter(e => e.type === 'language').length;
-    const punctuationErrors = errors.filter(e => e.type === 'punctuation').length;
+    const languageErrorsFromDetect = errors.filter(e => e.type === 'language').length;
+    const punctuationErrorsFromDetect = errors.filter(e => e.type === 'punctuation').length;
     
     const corrections = correctedMistakes.size;
     
@@ -409,8 +408,8 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
 
     return {
       totalErrors: errors.length,
-      languageErrors,
-      punctuationErrors,
+      languageErrors: languageErrorsFromDetect,
+      punctuationErrors: punctuationErrorsFromDetect,
       deletions,
       corrections,
       languageSwitches,
@@ -427,8 +426,11 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
     const metrics = calculateMetrics();
     
     const normalizedInput = normalizeText(userInput);
-    if (normalizedInput.length < normalizedExerciseText.length * 0.5) {
-      alert('Please type at least 50% of the text to continue.');
+    const completionRate = (normalizedInput.length / normalizedExerciseText.length) * 100;
+    
+    // CHANGED: Now requires 60% instead of 50%
+    if (completionRate < 60) {
+      alert('Please type at least 60% of the text to continue.');
       return;
     }
     
@@ -450,10 +452,16 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
         deletions,
         corrections: metrics.corrections,
         languageSwitches,
-        metrics,
+        metrics: {
+          ...metrics,
+          completionRate: Math.round(completionRate)
+        },
         cheatingDetected
       }],
-      metrics
+      metrics: {
+        ...metrics,
+        completionRate: Math.round(completionRate)
+      }
     });
   };
 
@@ -471,7 +479,6 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
           className = 'text-green-600';
           style = { fontWeight: 'bold' };
         } else {
-          // Enhanced error highlighting with light red background
           className = 'text-red-600';
           style = { 
             fontWeight: 'bold',
@@ -558,16 +565,16 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
           
           <button
             onClick={handleComplete}
-            disabled={normalizeText(userInput).length < normalizedExerciseText.length * 0.5}
+            disabled={normalizeText(userInput).length < normalizedExerciseText.length * 0.6}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Complete Exercise
           </button>
         </div>
         
-        {normalizeText(userInput).length < normalizedExerciseText.length * 0.5 && (
+        {normalizeText(userInput).length < normalizedExerciseText.length * 0.6 && (
           <p className="text-xs text-gray-500 mt-1 text-right">
-            Type at least 50% to continue
+            Type at least 60% to continue
           </p>
         )}
       </div>
