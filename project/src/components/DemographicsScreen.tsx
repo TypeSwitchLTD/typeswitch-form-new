@@ -11,15 +11,15 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     occupation: '',
     keyboardType: '',
     keyboardTypeOther: '',
-    currentKeyboard: [] as string[], // Changed to array
-    useMultipleKeyboards: false, // New field
+    currentKeyboard: [] as string[],
+    useMultipleKeyboards: false,
     age: '',
     diagnosis: ''
   });
 
   const languageOptions = [
     'Arabic-English',
-    'Hebrew-English',
+    'Hebrew-English', 
     'Russian-English'
   ];
 
@@ -32,7 +32,6 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
   ];
 
   const handleSubmit = () => {
-    // Check all required fields
     const finalKeyboardType = demographics.keyboardType === 'other' 
       ? demographics.keyboardTypeOther 
       : demographics.keyboardType;
@@ -88,7 +87,6 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     }));
   };
 
-  // Check if all required fields are filled
   const isFormValid = demographics.languages.length > 0 && 
                      demographics.hoursTyping && 
                      demographics.occupation && 
@@ -102,7 +100,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
         <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Initial Setup</h2>
         
         <div className="space-y-4">
-          {/* Languages - Single Selection */}
+          {/* Languages */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Which language pair do you type in? <span className="text-red-500">*</span>
@@ -172,7 +170,6 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
               What type of keyboard do you currently use? <span className="text-red-500">*</span>
             </label>
             
-            {/* Multiple keyboards checkbox */}
             <div className="mb-3">
               <label className="flex items-center cursor-pointer">
                 <input
