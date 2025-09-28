@@ -1,7 +1,6 @@
 // src/lib/deviceTracking.ts
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import { supabase } from './supabase';
 
 export interface DeviceInfo {
   fingerprint: string;
