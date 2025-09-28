@@ -35,8 +35,16 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
     }));
   }
 
-  // FIXED: Complete validation for all questions
-  const isStage1Valid = awakeningSymptoms.length > 0;
+  // FIXED: Check each category separately
+  const preventiveSymptoms = ['glance_icon', 'extra_shortcut', 'type_and_check'];
+  const microSymptoms = ['delete_word', 'wrong_punctuation', 'sent_wrong_lang'];
+  const mentalSymptoms = ['mental_effort', 'shortcut_conflict', 'use_3rd_party', 'none_of_above'];
+  
+  const hasPreventive = preventiveSymptoms.some(symptom => awakeningSymptoms.includes(symptom));
+  const hasMicro = microSymptoms.some(symptom => awakeningSymptoms.includes(symptom));
+  const hasMental = mentalSymptoms.some(symptom => awakeningSymptoms.includes(symptom));
+  
+  const isStage1Valid = hasPreventive && hasMicro && hasMental;
   const isStage2Valid = deepDive.flowBreakerImpact && 
                         deepDive.professionalImageImpact && 
                         deepDive.highPaceChallenge && 
@@ -64,21 +72,30 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
         <div className="mb-10">
             <div className="p-4 bg-blue-50 rounded-lg mb-6">
                 <h3 className="text-2xl font-bold text-blue-800">Stage 1: The Awakening</h3>
-                <p className="text-base text-gray-700 mt-1">Think about a typical workday. Which of the following feel familiar? <span className="text-red-500 font-semibold">(Check at least one that applies) *</span></p>
+                <p className="text-base text-gray-700 mt-1">Think about a typical workday. Which of the following feel familiar? <span className="text-red-500 font-semibold">(Check at least one from each category) *</span></p>
             </div>
             
-            {/* STAGE 1 VALIDATION WARNING */}
+            {/* VALIDATION WARNINGS FOR EACH CATEGORY */}
             {!isStage1Valid && (
               <div className="mb-4 p-3 bg-orange-100 border border-orange-400 rounded-lg">
-                <p className="text-orange-800 font-medium text-sm">
-                  Please select at least one option from Stage 1 to continue.
+                <p className="text-orange-800 font-medium text-sm mb-2">
+                  Please select at least one option from each category below:
                 </p>
+                <ul className="text-xs text-orange-700 list-disc ml-4">
+                  {!hasPreventive && <li>Preventive Habits (Before you type...)</li>}
+                  {!hasMicro && <li>Micro-Corrections</li>}
+                  {!hasMental && <li>Mental Effort & Existing Solutions</li>}
+                </ul>
               </div>
             )}
             
             <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="font-semibold text-lg text-gray-800 mb-2">Preventive Habits (Before you type...)</div>
+              <div className={`bg-gray-50 rounded-lg p-4 border-2 ${hasPreventive ? 'border-green-300' : 'border-red-300'}`}>
+                  <div className="font-semibold text-lg text-gray-800 mb-2">
+                    Preventive Habits (Before you type...) 
+                    <span className="text-red-500">*</span>
+                    {hasPreventive && <span className="ml-2 text-green-600 text-sm">✓</span>}
+                  </div>
                   <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -107,8 +124,13 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
                     <span>I type a word or two, then pause to see if they're in the right language.</span>
                   </label>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="font-semibold text-lg text-gray-800 mb-2">Micro-Corrections</div>
+              
+              <div className={`bg-gray-50 rounded-lg p-4 border-2 ${hasMicro ? 'border-green-300' : 'border-red-300'}`}>
+                  <div className="font-semibold text-lg text-gray-800 mb-2">
+                    Micro-Corrections 
+                    <span className="text-red-500">*</span>
+                    {hasMicro && <span className="ml-2 text-green-600 text-sm">✓</span>}
+                  </div>
                   <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -137,8 +159,13 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
                     <span>I've sent a quick chat message, only to realize after that it was in the wrong language.</span>
                   </label>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="font-semibold text-lg text-gray-800 mb-2">Mental Effort & Existing Solutions</div>
+              
+              <div className={`bg-gray-50 rounded-lg p-4 border-2 ${hasMental ? 'border-green-300' : 'border-red-300'}`}>
+                  <div className="font-semibold text-lg text-gray-800 mb-2">
+                    Mental Effort & Existing Solutions 
+                    <span className="text-red-500">*</span>
+                    {hasMental && <span className="ml-2 text-green-600 text-sm">✓</span>}
+                  </div>
                   <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -157,7 +184,7 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
                     />
                     <span>I avoid using certain app shortcuts because they conflict with the language-switching shortcut.</span>
                   </label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
                     <input 
                       type="checkbox" 
                       onChange={() => toggleSymptom('use_3rd_party')} 
@@ -261,7 +288,7 @@ const FeatureRating: React.FC<Props> = ({ onNext }) => {
         </div>
 
         <button onClick={handleSubmit} disabled={!isFormValid} className="mt-8 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-          {!isStage1Valid ? 'Please select at least one option in Stage 1' : 
+          {!isStage1Valid ? 'Please select at least one option from each category in Stage 1' : 
            !isStage2Valid ? 'Please complete all required questions in Stage 2' : 
            'Continue'}
         </button>
