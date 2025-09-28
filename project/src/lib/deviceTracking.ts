@@ -1,5 +1,7 @@
+// src/lib/deviceTracking.ts
+
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import { supabase } from './supabase'; // Changed to a static import for better stability
+import { supabase } from './supabase';
 
 export interface DeviceInfo {
   fingerprint: string;
@@ -8,15 +10,12 @@ export interface DeviceInfo {
   isMobile: boolean;
 }
 
-// זיהוי סוג המכשיר (Your original function - untouched)
+// זיהוי סוג המכשיר
 export const detectDevice = (): { type: 'mobile' | 'tablet' | 'desktop'; isMobile: boolean } => {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform.toLowerCase();
   
-  // בדיקה למובייל
   const isMobile = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-  
-  // בדיקה לטאבלט
   const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent) || 
                    (platform === 'macintel' && navigator.maxTouchPoints > 1);
   
@@ -25,7 +24,7 @@ export const detectDevice = (): { type: 'mobile' | 'tablet' | 'desktop'; isMobil
   return { type: 'desktop', isMobile: false };
 };
 
-// קבלת fingerprint של המכשיר (Your original function - untouched)
+// קבלת fingerprint של המכשיר
 export const getDeviceFingerprint = async (): Promise<string> => {
   try {
     const fp = await FingerprintJS.load();
@@ -33,12 +32,11 @@ export const getDeviceFingerprint = async (): Promise<string> => {
     return result.visitorId;
   } catch (error) {
     console.error('Error getting fingerprint:', error);
-    // אם נכשל, נחזיר מזהה אקראי
     return `fallback_${Math.random().toString(36).substr(2, 9)}`;
   }
 };
 
-// קבלת כתובת IP (Your original function - untouched)
+// קבלת כתובת IP
 export const getIPAddress = async (): Promise<string> => {
   try {
     const response = await fetch('https://ipapi.co/json/');
@@ -50,25 +48,28 @@ export const getIPAddress = async (): Promise<string> => {
   }
 };
 
-// בדיקה אם המשתמש כבר מילא את השאלון
-export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<boolean> => {
+// *** THE FIX IS HERE ***
+// Checks if user has submitted AND returns the discount code string or null
+export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<string | null> => {
   try {
     const { data, error } = await supabase
-      .from('survey_responses_v2') // <--- MINIMAL CHANGE
-      .select('id')
+      .from('survey_responses_v2')
+      .select('discount_code') // FIX: Select the actual discount code
       .or(`device_fingerprint.eq.${fingerprint},ip_address.eq.${ip}`)
       .eq('survey_completed', true)
-      .limit(1);
+      .limit(1)
+      .maybeSingle(); // Use maybeSingle for a cleaner result object
     
     if (error) {
       console.error('Error checking submission:', error);
-      return false;
+      return null;
     }
     
-    return data && data.length > 0;
+    // FIX: Return the code string itself, or null if no record was found
+    return data ? data.discount_code : null;
   } catch (error) {
     console.error('Error in checkIfAlreadySubmitted:', error);
-    return false;
+    return null;
   }
 };
 
@@ -76,7 +77,7 @@ export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): 
 export const saveDeviceInfo = async (surveyId: string, deviceInfo: DeviceInfo): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('survey_responses_v2') // <--- MINIMAL CHANGE
+      .from('survey_responses_v2')
       .update({
         ip_address: deviceInfo.ip,
         device_fingerprint: deviceInfo.fingerprint,
