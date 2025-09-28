@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface Props {
   onNext: (data: any) => void;
+  t: any; // Translation object
 }
 
-const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
+const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
   const [demographics, setDemographics] = useState({
     languages: [] as string[],
     hoursTyping: '',
@@ -17,38 +18,45 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     diagnosis: ''
   });
 
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
   const languageOptions = [
     'Arabic-English',
     'Hebrew-English', 
     'Russian-English'
   ];
 
-  const keyboardTypes = [
-    { value: 'mechanical', label: 'Mechanical (Cherry MX, gaming keyboards)' },
-    { value: 'ergonomic', label: 'Ergonomic (Split layout, curved design)' },
-    { value: 'wireless', label: 'Wireless/Bluetooth (Portable, no cables)' },
-    { value: 'membrane', label: 'Membrane (Standard office keyboards)' },
-    { value: 'laptop', label: 'Laptop/Built-in (Came with computer)' }
-  ];
+  // FIX: Keyboard types are now generated from the translation prop 't'
+  const keyboardTypes = useMemo(() => {
+    if (!t.keyboardTypeOptions) return [];
+    return Object.entries(t.keyboardTypeOptions).map(([value, label]) => ({
+        value,
+        label: label as string,
+    }));
+  }, [t]);
+
+
+  const isFormValid = demographics.languages.length > 0 && 
+                     demographics.hoursTyping && 
+                     demographics.occupation && 
+                     demographics.currentKeyboard.length > 0 &&
+                     demographics.age &&
+                     (demographics.keyboardType && (demographics.keyboardType !== 'other' || demographics.keyboardTypeOther));
 
   const handleSubmit = () => {
-    const finalKeyboardType = demographics.keyboardType === 'other' 
-      ? demographics.keyboardTypeOther 
-      : demographics.keyboardType;
+    setAttemptedSubmit(true);
+    if (isFormValid) {
+      const finalKeyboardType = demographics.keyboardType === 'other' 
+        ? demographics.keyboardTypeOther 
+        : demographics.keyboardType;
 
-    if (demographics.languages.length > 0 && 
-        demographics.hoursTyping && 
-        demographics.occupation && 
-        demographics.currentKeyboard.length > 0 &&
-        demographics.age &&
-        finalKeyboardType) {
       onNext({ 
         demographics: {
           ...demographics,
           keyboardType: finalKeyboardType,
           currentKeyboard: demographics.useMultipleKeyboards 
             ? demographics.currentKeyboard 
-            : [demographics.currentKeyboard[0]]
+            : demographics.currentKeyboard.slice(0, 1)
         }
       });
     }
@@ -87,23 +95,22 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
     }));
   };
 
-  const isFormValid = demographics.languages.length > 0 && 
-                     demographics.hoursTyping && 
-                     demographics.occupation && 
-                     demographics.currentKeyboard.length > 0 &&
-                     demographics.age &&
-                     (demographics.keyboardType && (demographics.keyboardType !== 'other' || demographics.keyboardTypeOther));
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Initial Setup</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">{t.title}</h2>
         
         <div className="space-y-4">
+          {attemptedSubmit && !isFormValid && (
+            <div className="p-3 my-4 bg-red-100 border-l-4 border-red-500 text-red-700">
+              <p className="font-bold">{t.validationError}</p>
+            </div>
+          )}
+
           {/* Languages */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Which language pair do you type in? <span className="text-red-500">*</span>
+              {t.qLangPair} <span className="text-red-500">{t.required}</span>
             </label>
             <div className="grid grid-cols-1 gap-2">
               {languageOptions.map(lang => (
@@ -125,49 +132,41 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
           {/* Hours typing */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              How many hours per day do you type? <span className="text-red-500">*</span>
+              {t.qHours} <span className="text-red-500">{t.required}</span>
             </label>
             <select
               value={demographics.hoursTyping}
               onChange={(e) => setDemographics({...demographics, hoursTyping: e.target.value})}
               className="w-full p-2 border rounded-lg text-sm"
             >
-              <option value="">Select...</option>
-              <option value="less-1">Less than 1 hour</option>
-              <option value="1-3">1-3 hours</option>
-              <option value="3-5">3-5 hours</option>
-              <option value="5-8">5-8 hours</option>
-              <option value="8+">8+ hours</option>
+              <option value="">{t.selectDefault}</option>
+              {Object.entries(t.hoursOptions).map(([key, value]) => (
+                <option key={key} value={key}>{value as string}</option>
+              ))}
             </select>
           </div>
 
           {/* Occupation */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Field of work? <span className="text-red-500">*</span>
+              {t.qOccupation} <span className="text-red-500">{t.required}</span>
             </label>
             <select
               value={demographics.occupation}
               onChange={(e) => setDemographics({...demographics, occupation: e.target.value})}
               className="w-full p-2 border rounded-lg text-sm"
             >
-              <option value="">Select...</option>
-              <option value="student">Student</option>
-              <option value="tech">Tech / Programming</option>
-              <option value="sales">Sales</option>
-              <option value="purchasing">Purchasing</option>
-              <option value="translation">Translation</option>
-              <option value="education">Education</option>
-              <option value="marketing">Marketing</option>
-              <option value="design">Design</option>
-              <option value="other">Other</option>
+              <option value="">{t.selectDefault}</option>
+               {Object.entries(t.occupationOptions).map(([key, value]) => (
+                <option key={key} value={key}>{value as string}</option>
+              ))}
             </select>
           </div>
 
           {/* Current Keyboard Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              What type of keyboard do you currently use? <span className="text-red-500">*</span>
+              {t.qKeyboardType} <span className="text-red-500">{t.required}</span>
             </label>
             
             <div className="mb-3">
@@ -176,9 +175,9 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
                   type="checkbox"
                   checked={demographics.useMultipleKeyboards}
                   onChange={(e) => handleMultipleKeyboardsChange(e.target.checked)}
-                  className="mr-2 h-4 w-4"
+                  className="me-2 h-4 w-4"
                 />
-                <span className="text-sm text-gray-600">I use multiple keyboards</span>
+                <span className="text-sm text-gray-600">{t.multiKeyboard}</span>
               </label>
             </div>
 
@@ -196,7 +195,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
                 >
                   {type.label}
                   {demographics.useMultipleKeyboards && demographics.currentKeyboard.includes(type.value) && (
-                    <span className="ml-2 text-xs">✓</span>
+                    <span className="ms-2 text-xs">✓</span>
                   )}
                 </button>
               ))}
@@ -204,7 +203,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
             
             {demographics.useMultipleKeyboards && (
               <p className="text-xs text-gray-500 mt-1">
-                Select up to 3 keyboards ({demographics.currentKeyboard.length}/3 selected)
+                {t.multiKeyboardDesc(demographics.currentKeyboard.length)}
               </p>
             )}
           </div>
@@ -212,15 +211,15 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
           {/* Keyboard layout */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Keyboard layout? <span className="text-red-500">*</span>
-              <span className="text-xs text-gray-500 ml-1">(The physical arrangement of keys on your keyboard)</span>
+              {t.qKeyboardLayout} <span className="text-red-500">{t.required}</span>
+              <span className="text-xs text-gray-500 ms-1">{t.qKeyboardLayoutDesc}</span>
             </label>
             <select
               value={demographics.keyboardType}
               onChange={(e) => setDemographics({...demographics, keyboardType: e.target.value, keyboardTypeOther: ''})}
               className="w-full p-2 border rounded-lg text-sm"
             >
-              <option value="">Select...</option>
+              <option value="">{t.selectDefault}</option>
               <option value="QWERTY">QWERTY</option>
               <option value="other">Other</option>
             </select>
@@ -230,7 +229,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
                 type="text"
                 value={demographics.keyboardTypeOther}
                 onChange={(e) => setDemographics({...demographics, keyboardTypeOther: e.target.value})}
-                placeholder="Please specify your keyboard layout (e.g., AZERTY, DVORAK, etc.)..."
+                placeholder={t.keyboardLayoutOtherPlaceholder}
                 className="w-full mt-2 p-2 border rounded-lg text-sm"
               />
             )}
@@ -239,51 +238,46 @@ const DemographicsScreen: React.FC<Props> = ({ onNext }) => {
           {/* Age */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Age? <span className="text-red-500">*</span>
+              {t.qAge} <span className="text-red-500">{t.required}</span>
             </label>
             <select
               value={demographics.age}
               onChange={(e) => setDemographics({...demographics, age: e.target.value})}
               className="w-full p-2 border rounded-lg text-sm"
             >
-              <option value="">Select...</option>
-              <option value="under-18">Under 18</option>
-              <option value="18-25">18-25</option>
-              <option value="26-35">26-35</option>
-              <option value="36-45">36-45</option>
-              <option value="46-55">46-55</option>
-              <option value="55+">55+</option>
+              <option value="">{t.selectDefault}</option>
+              {Object.entries(t.ageOptions).map(([key, value]) => (
+                <option key={key} value={key}>{value as string}</option>
+              ))}
             </select>
           </div>
 
           {/* Diagnosis */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Have you been diagnosed with:
+              {t.qDiagnosis}
             </label>
             <p className="text-xs text-gray-600 mb-2">
-              (Optional but important for our research)
+              {t.qDiagnosisDesc}
             </p>
             <select
               value={demographics.diagnosis}
               onChange={(e) => setDemographics({...demographics, diagnosis: e.target.value})}
               className="w-full p-2 border rounded-lg text-sm"
             >
-              <option value="">Select...</option>
-              <option value="adhd">ADHD</option>
-              <option value="dyslexia">Dyslexia</option>
-              <option value="other">Other learning disability</option>
-              <option value="undiagnosed">Not diagnosed but suspect attention difficulties</option>
-              <option value="none">None</option>
+              <option value="">{t.selectDefault}</option>
+              {Object.entries(t.diagnosisOptions).map(([key, value]) => (
+                <option key={key} value={key}>{value as string}</option>
+              ))}
             </select>
           </div>
 
           <button
             onClick={handleSubmit}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold text-sm hover:bg-blue-700 transition disabled:opacity-50"
             disabled={!isFormValid}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {!isFormValid ? 'Please fill all required fields' : 'Continue'}
+            {isFormValid ? t.continueButton : t.validationError}
           </button>
         </div>
       </div>
