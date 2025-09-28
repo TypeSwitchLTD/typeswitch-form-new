@@ -5,6 +5,7 @@ interface Props {
   exerciseNumber: number;
   onComplete: (data: any) => void;
   selectedLanguage: string;
+  t: any; // Translation object
 }
 
 const exercises = {
@@ -52,7 +53,7 @@ const exercises = {
   ]
 };
 
-const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedLanguage }) => {
+const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedLanguage, t }) => {
   const [userInput, setUserInput] = useState('');
   const [startTime, setStartTime] = useState<number>(0);
   const [keystrokes, setKeystrokes] = useState<KeystrokeEvent[]>([]);
@@ -514,7 +515,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-2">
       <div className="bg-white rounded-xl shadow-xl p-4 max-w-6xl w-full" style={{ maxHeight: '95vh' }}>
-        <h2 className="text-lg font-bold text-gray-800 mb-2">{exercise.title}</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-2">{t.title}</h2>
         
         {cheatingDetected && (
           <div className="mb-2 p-2 bg-red-100 border border-red-400 rounded-lg">
@@ -531,7 +532,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-gray-600 mt-1">Progress: {Math.round(progress)}%</p>
+          <p className="text-xs text-gray-600 mt-1">{t.progress} {Math.round(progress)}%</p>
         </div>
 
         <div className="mb-3 p-3 bg-gray-50 rounded-lg" style={{ maxHeight: '35vh', overflowY: 'auto' }} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -542,7 +543,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
 
         <div className="mb-2">
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Type the email here:
+            {t.instruction}
           </label>
           <textarea
             ref={textareaRef}
@@ -556,7 +557,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
             onCut={(e) => e.preventDefault()}
             className="w-full p-3 border-2 border-gray-300 rounded-lg font-mono text-sm leading-relaxed resize-none focus:border-blue-500 focus:outline-none bg-white"
             rows={7}
-            placeholder="Start typing the email..."
+            placeholder={t.subtitle}
             dir={isRTL ? 'rtl' : 'ltr'}
             spellCheck={false}
             autoComplete="off"
@@ -568,11 +569,7 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
 
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-500">
-            <span>Characters: {normalizeText(userInput).length} / {normalizedExerciseText.length}</span>
-            {/* DEBUG INFO - Remove in production */}
-            <div className="text-xs mt-1">
-              Lang Errors: {realTimeLanguageErrors} | Punct Errors: {realTimePunctuationErrors}
-            </div>
+            {/* Additional info can be translated if needed */}
           </div>
           
           <button
@@ -580,12 +577,13 @@ const TypingExercise: React.FC<Props> = ({ exerciseNumber, onComplete, selectedL
             disabled={normalizeText(userInput).length < normalizedExerciseText.length * 0.6}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Complete Exercise
+            {t.completeButton}
           </button>
         </div>
         
         {normalizeText(userInput).length < normalizedExerciseText.length * 0.6 && (
           <p className="text-xs text-gray-500 mt-1 text-right">
+            {/* This text can also be added to translations if needed */}
             Type at least 60% to continue
           </p>
         )}
