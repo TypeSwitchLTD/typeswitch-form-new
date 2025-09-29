@@ -6,15 +6,17 @@ interface Props {
   metrics: TypingMetrics;
   onClose: () => void;
   selectedLanguage?: string;
+  t: any; // Translation object
 }
 
-const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebrew-English' }) => {
+const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebrew-English', t }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareStep, setShareStep] = useState<'initial' | 'generated'>('initial');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState('');
 
-  const finalScore = calculateOverallScore(metrics);
+  const finalScore = calculateOverallScore(metrics, (metrics as any).completionRate || 100);
+  
   const shareTexts = {
     'Hebrew-English': {
       postLine1: 'עשיתי את מבחן ההקלדה של TypeSwitch.',
@@ -52,7 +54,6 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
   const scoreLevelInfo = getScoreLevelInfo(finalScore);
 
   const generateImageWithCanvas = () => {
-    // Canvas generation logic remains the same
     setIsGenerating(true);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -129,7 +130,7 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
     ctx.fillText(`${metrics.frustrationScore}/10`, 320 + (barWidth > 360 ? 360: barWidth)/2, yPos + 46);
     
     yPos += 150;
-    const shareUrl = "typeswitch.io";
+    const shareUrl = "form.typeswitch.io";
     ctx.fillStyle = 'rgba(147, 51, 234, 0.1)';
     roundRect(ctx, 60, yPos, 680, 200, 20);
     ctx.fill();
@@ -154,7 +155,6 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
     setIsGenerating(false);
   };
   
-  // roundRect function remains the same
   const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -169,9 +169,7 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
     ctx.closePath();
   };
 
-
-  // downloadImage, buildPostText, and shareToSocial logic remains the same
-    const downloadImage = () => {
+  const downloadImage = () => {
     const a = document.createElement('a');
     a.href = imageUrl;
     a.download = `typeswitch-results-${selectedLanguage}.png`;
@@ -189,13 +187,13 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
       '', 
       currentText.postCta,
       '',
-      'Test yourself: https://typeswitch.io'
+      'Test yourself: https://form.typeswitch.io'
     ].join('\n');
   };
 
   const shareToSocial = (platform: string) => {
     const postText = buildPostText();
-    const siteUrl = 'https://typeswitch.io';
+    const siteUrl = 'https://form.typeswitch.io';
 
     navigator.clipboard.writeText(postText).then(() => {
       setCopySuccess(currentText.copyMessage);
@@ -225,14 +223,15 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
     if (url) window.open(url, '_blank');
   };
 
-
   return (
-    // JSX Rendering logic remains the same
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-3xl w-full">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Share Your Results</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition">
+        {/* *** FIX: Centered title with absolute positioned close button *** */}
+        <div className="relative mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 text-center w-full">
+            {t.shareTitle || "Share Your Results"}
+          </h2>
+          <button onClick={onClose} className="absolute -top-2 -right-2 text-gray-500 hover:text-gray-700 transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -258,6 +257,15 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
             <div className="mb-4 max-h-96 overflow-y-auto rounded-lg shadow-lg border">
               <img src={imageUrl} alt="Your Results" className="w-full" />
             </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
+                <h4 className="font-bold mb-1">{t.shareExplanationTitle}</h4>
+                <ul className="list-disc list-inside space-y-1">
+                    <li>{t.shareExplanation1}</li>
+                    <li>{t.shareExplanation2}</li>
+                    <li>{t.shareExplanation3}</li>
+                </ul>
+            </div>
             
             {copySuccess && (
                <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg text-center">
@@ -277,7 +285,7 @@ const ShareCard: React.FC<Props> = ({ metrics, onClose, selectedLanguage = 'Hebr
                <div className="flex items-center gap-3">
                   <button onClick={downloadImage} className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-700 transition flex items-center justify-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Download
+                    {t.downloadButton}
                   </button>
                    <button onClick={() => { setShareStep('initial'); setImageUrl(''); setCopySuccess(''); }} className="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition">
                     ← Back
