@@ -490,7 +490,8 @@ function App() {
 
   const renderScreen = () => {
     const screenName = screens[currentScreen];
-    const isHebrewUser = surveyData.demographics.languages?.[0] === 'Hebrew-English';
+    // FIX: Check language state instead of demographics
+    const isHebrewUser = language === 'he';
 
     switch (screenName) {
       case 'welcome':
