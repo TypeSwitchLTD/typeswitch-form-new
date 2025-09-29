@@ -209,7 +209,8 @@ const ResultsReport: React.FC<Props> = ({
                   </div>
                   <div className="flex justify-between items-center text-blue-600 mt-1 pt-1 border-t">
                     <span className="font-semibold">{t.finalScore}:</span>
-                    <span className="font-bold text-lg">{scoreBreakdown.finalScore}</span>
+                    {/* *** FIX: Display the consistent overallScore here *** */}
+                    <span className="font-bold text-lg">{overallScore}</span>
                   </div>
                 </div>
               </div>
