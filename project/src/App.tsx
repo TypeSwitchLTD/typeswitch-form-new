@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { SurveyData, TypingMetrics } from './types';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -27,63 +29,154 @@ export const calculateOverallScore = (metrics: TypingMetrics, completionRate: nu
   
   // 1. ERRORS COMPONENT (50 points max)
   let errorScore = 50;
-  if (metrics.languageErrors > 15) errorScore -= 20; else if (metrics.languageErrors > 10) errorScore -= 15; else if (metrics.languageErrors > 7) errorScore -= 12; else if (metrics.languageErrors > 5) errorScore -= 9; else if (metrics.languageErrors > 3) errorScore -= 6; else if (metrics.languageErrors > 1) errorScore -= 3;
-  if (metrics.punctuationErrors > 10) errorScore -= 10; else if (metrics.punctuationErrors > 7) errorScore -= 8; else if (metrics.punctuationErrors > 5) errorScore -= 6; else if (metrics.punctuationErrors > 3) errorScore -= 4; else if (metrics.punctuationErrors > 1) errorScore -= 2;
+  
+  // Language errors (most critical) - 20 points
+  if (metrics.languageErrors > 15) errorScore -= 20;
+  else if (metrics.languageErrors > 10) errorScore -= 15;
+  else if (metrics.languageErrors > 7) errorScore -= 12;
+  else if (metrics.languageErrors > 5) errorScore -= 9;
+  else if (metrics.languageErrors > 3) errorScore -= 6;
+  else if (metrics.languageErrors > 1) errorScore -= 3;
+  
+  // Punctuation errors - 10 points
+  if (metrics.punctuationErrors > 10) errorScore -= 10;
+  else if (metrics.punctuationErrors > 7) errorScore -= 8;
+  else if (metrics.punctuationErrors > 5) errorScore -= 6;
+  else if (metrics.punctuationErrors > 3) errorScore -= 4;
+  else if (metrics.punctuationErrors > 1) errorScore -= 2;
+  
+  // Letter errors - 10 points
   const letterErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
-  if (letterErrors > 20) errorScore -= 10; else if (letterErrors > 15) errorScore -= 8; else if (letterErrors > 10) errorScore -= 6; else if (letterErrors > 7) errorScore -= 4; else if (letterErrors > 4) errorScore -= 2;
-  if (metrics.deletions > 30) errorScore -= 10; else if (metrics.deletions > 20) errorScore -= 8; else if (metrics.deletions > 15) errorScore -= 6; else if (metrics.deletions > 10) errorScore -= 4; else if (metrics.deletions > 5) errorScore -= 2;
+  if (letterErrors > 20) errorScore -= 10;
+  else if (letterErrors > 15) errorScore -= 8;
+  else if (letterErrors > 10) errorScore -= 6;
+  else if (letterErrors > 7) errorScore -= 4;
+  else if (letterErrors > 4) errorScore -= 2;
+  
+  // Multiple deletions penalty - 10 points
+  if (metrics.deletions > 30) errorScore -= 10;
+  else if (metrics.deletions > 20) errorScore -= 8;
+  else if (metrics.deletions > 15) errorScore -= 6;
+  else if (metrics.deletions > 10) errorScore -= 4;
+  else if (metrics.deletions > 5) errorScore -= 2;
+  
   score += Math.max(0, errorScore);
   
   // 2. COMPLETION COMPONENT (20 points max)
   let completionScore = 0;
-  if (completionRate >= 100) completionScore = 20; else if (completionRate >= 90) completionScore = 18; else if (completionRate >= 80) completionScore = 16; else if (completionRate >= 70) completionScore = 14; else if (completionRate >= 60) completionScore = 12; else completionScore = Math.max(0, (completionRate / 60) * 12);
+  if (completionRate >= 100) completionScore = 20;
+  else if (completionRate >= 90) completionScore = 18;
+  else if (completionRate >= 80) completionScore = 16;
+  else if (completionRate >= 70) completionScore = 14;
+  else if (completionRate >= 60) completionScore = 12;
+  else completionScore = Math.max(0, (completionRate / 60) * 12);
+  
   score += completionScore;
   
   // 3. SPEED COMPONENT (20 points max)
   let speedScore = 0;
-  if (metrics.wpm >= 60) speedScore = 20; else if (metrics.wpm >= 50) speedScore = 18; else if (metrics.wpm >= 40) speedScore = 15; else if (metrics.wpm >= 30) speedScore = 12; else if (metrics.wpm >= 20) speedScore = 8; else if (metrics.wpm >= 10) speedScore = 4; else speedScore = 1;
+  if (metrics.wpm >= 60) speedScore = 20;
+  else if (metrics.wpm >= 50) speedScore = 18;
+  else if (metrics.wpm >= 40) speedScore = 15;
+  else if (metrics.wpm >= 30) speedScore = 12;
+  else if (metrics.wpm >= 20) speedScore = 8;
+  else if (metrics.wpm >= 10) speedScore = 4;
+  else speedScore = 1;
+  
   score += speedScore;
   
   // 4. OTHER FACTORS (10 points max)
   let otherScore = 10;
-  if (metrics.languageSwitches > 15) otherScore -= 4; else if (metrics.languageSwitches > 10) otherScore -= 3; else if (metrics.languageSwitches > 5) otherScore -= 2;
-  if (metrics.frustrationScore > 8) otherScore -= 4; else if (metrics.frustrationScore > 6) otherScore -= 3; else if (metrics.frustrationScore > 4) otherScore -= 2; else if (metrics.frustrationScore > 2) otherScore -= 1;
-  if (metrics.averageDelay > 3000) otherScore -= 2; else if (metrics.averageDelay > 2000) otherScore -= 1;
+  
+  // Language switches penalty
+  if (metrics.languageSwitches > 15) otherScore -= 4;
+  else if (metrics.languageSwitches > 10) otherScore -= 3;
+  else if (metrics.languageSwitches > 5) otherScore -= 2;
+  
+  // Flow disruption penalty (removed "frustration" terminology)
+  if (metrics.frustrationScore > 8) otherScore -= 4;
+  else if (metrics.frustrationScore > 6) otherScore -= 3;
+  else if (metrics.frustrationScore > 4) otherScore -= 2;
+  else if (metrics.frustrationScore > 2) otherScore -= 1;
+  
+  // Average delay penalty
+  if (metrics.averageDelay > 3000) otherScore -= 2;
+  else if (metrics.averageDelay > 2000) otherScore -= 1;
+  
   score += Math.max(0, otherScore);
   
   return Math.max(1, Math.min(100, Math.round(score)));
 };
 
+// Calculate wasted time in seconds
 export const calculateWastedTime = (metrics: TypingMetrics): number => {
   const deletionTime = metrics.deletions * 0.3;
   const correctionTime = metrics.corrections * 2;
   const languageErrorTime = metrics.languageErrors * 3;
+  
   return Math.round(deletionTime + correctionTime + languageErrorTime);
 };
 
+// Score breakdown function with new algorithm (removed "frustration" from user-facing text)
 export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number = 100) => {
   const breakdown = [];
+  
   if (metrics.languageErrors > 1) {
-    breakdown.push({ category: 'Language Errors', penalty: Math.min(20, metrics.languageErrors * 2), reason: `${metrics.languageErrors} wrong language characters` });
+    breakdown.push({ 
+      category: 'Language Errors', 
+      penalty: Math.min(20, metrics.languageErrors * 2), 
+      reason: `${metrics.languageErrors} wrong language characters` 
+    });
   }
+  
   if (metrics.punctuationErrors > 1) {
-    breakdown.push({ category: 'Punctuation Errors', penalty: Math.min(10, metrics.punctuationErrors), reason: `${metrics.punctuationErrors} punctuation mistakes` });
+    breakdown.push({ 
+      category: 'Punctuation Errors', 
+      penalty: Math.min(10, metrics.punctuationErrors), 
+      reason: `${metrics.punctuationErrors} punctuation mistakes` 
+    });
   }
+  
   if (metrics.deletions > 5) {
-    breakdown.push({ category: 'Excessive Deletions', penalty: Math.min(10, Math.floor(metrics.deletions / 3)), reason: `${metrics.deletions} deletions made` });
+    breakdown.push({ 
+      category: 'Excessive Deletions', 
+      penalty: Math.min(10, Math.floor(metrics.deletions / 3)), 
+      reason: `${metrics.deletions} deletions made` 
+    });
   }
+  
   if (completionRate < 100) {
-    breakdown.push({ category: 'Incomplete Text', penalty: Math.round((100 - completionRate) * 0.2), reason: `Only ${completionRate.toFixed(0)}% completed` });
+    breakdown.push({ 
+      category: 'Incomplete Text', 
+      penalty: Math.round((100 - completionRate) * 0.2), 
+      reason: `Only ${completionRate.toFixed(0)}% completed` 
+    });
   }
+  
   if (metrics.wpm < 40) {
-    breakdown.push({ category: 'Typing Speed', penalty: Math.min(15, Math.max(0, 40 - metrics.wpm)), reason: `${metrics.wpm} WPM (below average)` });
+    breakdown.push({ 
+      category: 'Typing Speed', 
+      penalty: Math.min(15, Math.max(0, 40 - metrics.wpm)), 
+      reason: `${metrics.wpm} WPM (below average)` 
+    });
   }
+  
   if (metrics.languageSwitches > 5) {
-    breakdown.push({ category: 'Rhythm Disruption', penalty: Math.min(4, Math.floor(metrics.languageSwitches / 3)), reason: `${metrics.languageSwitches} language switches` });
+    breakdown.push({ 
+      category: 'Rhythm Disruption', 
+      penalty: Math.min(4, Math.floor(metrics.languageSwitches / 3)), 
+      reason: `${metrics.languageSwitches} language switches` 
+    });
   }
+  
   if (metrics.frustrationScore > 4) {
-    breakdown.push({ category: 'Flow Disruption', penalty: Math.min(4, metrics.frustrationScore - 4), reason: `${metrics.frustrationScore}/10 flow score` });
+    breakdown.push({ 
+      category: 'Flow Disruption', 
+      penalty: Math.min(4, metrics.frustrationScore - 4), 
+      reason: `${metrics.frustrationScore}/10 flow score` 
+    });
   }
+  
   const totalPenalty = breakdown.reduce((sum, item) => sum + item.penalty, 0);
   return { breakdown, totalPenalty };
 };
@@ -228,8 +321,7 @@ function App() {
         await saveToDatabase(updatedSurveyData);
       }
       
-      const nextScreenIndex = isRetakeTest && currentScreen === screens.indexOf('exercise1') ? screens.indexOf('results') : currentScreen + 1;
-
+      const nextScreenIndex = currentScreen + 1;
       if (nextScreenIndex < screens.length) {
         setCurrentScreen(nextScreenIndex);
       } else {
@@ -370,7 +462,7 @@ function App() {
     );
   }
   
-  if (alreadySubmitted && !isRetakeTest) {
+  if (alreadySubmitted && !isRetakeTest && currentScreen !== screens.indexOf('thankYou')) {
     return (
      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
@@ -383,19 +475,13 @@ function App() {
              <button onClick={handleTryTest} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition">
                {t.app.tryChallengeButton}
              </button>
-              {/* *** FIX: Ensured this button is disabled as requested *** */}
-              <button disabled className="w-full bg-gray-200 text-gray-400 py-3 px-6 rounded-lg font-semibold cursor-not-allowed">
-               {t.app.skipToSurveyButton}
-             </button>
            </div>
            <div className="mt-6 pt-6 border-t">
              <p className="text-sm text-gray-600 mb-2">{t.app.yourDiscountCode}</p>
              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                <code className="text-green-800 font-mono font-bold">{existingDiscountCode || '...'}</code>
              </div>
-             {/* *** FIX: Replaced "Save Code" with new instructions and link *** */}
-             <p className="text-xs text-gray-500 mt-2 px-4">{t.app.supportInstructions}</p>
-             <a href="https://www.typeswitch.io" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-2 inline-block">{t.app.visitSite}</a>
+             <p className="text-xs text-gray-500 mt-2">{t.app.saveCode}</p>
            </div>
          </div>
        </div>
@@ -404,9 +490,7 @@ function App() {
 
   const renderScreen = () => {
     const screenName = screens[currentScreen];
-    // *** FIX: Simplified and corrected the logic to handle retakes properly ***
-    const languageForChallenge = surveyData.demographics.languages?.[0];
-    const isHebrewUser = languageForChallenge === 'Hebrew-English';
+    const isHebrewUser = surveyData.demographics.languages?.[0] === 'Hebrew-English';
 
     switch (screenName) {
       case 'welcome':
@@ -425,6 +509,8 @@ function App() {
                 <div>
                   <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">{t.beforeExercise.challengeChoiceTitle}</h2>
                   <p className="text-gray-600 text-center mb-6">{t.beforeExercise.subtitle}</p>
+                  
+                  {/* SCORING TABLE - RESTORED */}
                   <div className="bg-blue-50 rounded-xl p-6 mb-6">
                     <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">{t.beforeExercise.scoringTitle}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -434,6 +520,7 @@ function App() {
                       <div className="text-center"><div className="text-2xl font-bold text-orange-600">10%</div><div className="text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
                     </div>
                   </div>
+                  
                   <div className="grid md:grid-cols-2 gap-4 mt-8">
                     <div onClick={() => handleStartChallenge('purchasing_email')} className="border-2 border-blue-200 hover:border-blue-400 bg-blue-50 rounded-lg p-6 cursor-pointer transition">
                       <h3 className="font-bold text-blue-800 text-lg mb-2">{t.beforeExercise.challenge1Name}</h3>
@@ -444,13 +531,21 @@ function App() {
                       <p className="text-sm text-gray-700">{t.beforeExercise.challenge2Desc}</p>
                     </div>
                   </div>
-                  {!surveyCompleted && <button onClick={handleSkipTest} className="w-full mt-6 bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition">{t.beforeExercise.skipButton}</button>}
+                  
+                  {/* SKIP BUTTON - Only show if survey not completed and not in retake mode */}
+                  {!surveyCompleted && !isRetakeTest && (
+                    <button onClick={handleSkipTest} className="w-full mt-6 bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-700 transition">
+                      {t.beforeExercise.skipButton}
+                    </button>
+                  )}
                 </div>
               ) : (
                 // VIEW FOR ALL OTHER USERS (AND MOBILE)
                 <div>
                   <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">{t.beforeExercise.title}</h2>
                   <p className="text-gray-600 text-center mb-6">{t.beforeExercise.subtitle}</p>
+                  
+                  {/* SCORING TABLE - RESTORED */}
                   <div className="bg-blue-50 rounded-xl p-6 mb-6">
                     <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">{t.beforeExercise.scoringTitle}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -460,6 +555,7 @@ function App() {
                       <div className="text-center"><div className="text-2xl font-bold text-orange-600">10%</div><div className="text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
                     </div>
                   </div>
+                  
                   <div className="bg-yellow-50 rounded-lg p-4 mb-6"><p className="text-yellow-800 font-medium">{t.beforeExercise.tip}</p></div>
                   <div className="flex gap-3 mt-8">
                     {isMobileDevice && !isRetakeTest? (
@@ -467,7 +563,10 @@ function App() {
                     ) : (
                       <>
                         <button onClick={() => handleStartChallenge('purchasing_email')} className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">{t.beforeExercise.startButton}</button>
-                        {!surveyCompleted && <button onClick={handleSkipTest} className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition">{t.beforeExercise.skipButton}</button>}
+                        {/* SKIP BUTTON - Only show if survey not completed and not in retake mode */}
+                        {!surveyCompleted && !isRetakeTest && (
+                          <button onClick={handleSkipTest} className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-700 transition">{t.beforeExercise.skipButton}</button>
+                        )}
                       </>
                     )}
                   </div>
@@ -493,7 +592,7 @@ function App() {
         return <PurchaseDecision onNext={handleNext} t={getTranslations('purchase')} />;
         
       case 'thankYou':
-        return <ThankYou discountCode={surveyCompleted ? discountCode : existingDiscountCode} onShare={handleShowShareCard} onEmailSubmit={handleEmailSubmit} skippedTest={skippedTest && !testCompleted} onTryTest={handleTryTest} t={getTranslations('thankYou')} />;
+        return <ThankYou discountCode={discountCode} onShare={handleShowShareCard} onEmailSubmit={handleEmailSubmit} skippedTest={skippedTest && !testCompleted} onTryTest={handleTryTest} t={getTranslations('thankYou')} />;
         
       default:
         return <WelcomeScreen language={language} onNext={() => setCurrentScreen(1)} onAdminClick={handleAdminClick} setLanguage={setLanguage} t={getTranslations('welcome')} />;
