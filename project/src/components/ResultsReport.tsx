@@ -10,7 +10,7 @@ interface Props {
   onShare: () => void;
   showBreakdown?: boolean;
   isRetake?: boolean;
-  t: any; // Translation object ADDED
+  t: any;
 }
 
 const ResultsReport: React.FC<Props> = ({ 
@@ -19,9 +19,8 @@ const ResultsReport: React.FC<Props> = ({
   onShare, 
   showBreakdown = true,
   isRetake = false,
-  t // Translation object ADDED
+  t
 }) => {
-  // Defensive check for translations
   if (!t || !t.levels) {
     return (
         <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
@@ -38,18 +37,17 @@ const ResultsReport: React.FC<Props> = ({
   const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
   const wastedTimeSeconds = calculateWastedTime(metrics);
  
-  // Calculate realistic daily, monthly, yearly waste
   const testDurationMinutes = Math.max(1, ((window as any).exerciseEndTime - (window as any).exerciseStartTime) / 60000) || 5;
   const wastedSecondsPerMinute = wastedTimeSeconds / testDurationMinutes;
-  const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60; // 90 minutes daily multilingual typing
-  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60; // 22 working days
+  const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60;
+  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60;
   const yearlyWasteHours = monthlyWasteHours * 12;
  
   const getScoreLevel = (score: number) => {
     if (score >= 85) return { level: t.levels.excellent, color: 'text-green-600', bg: 'bg-green-100' };
     if (score >= 70) return { level: t.levels.good, color: 'text-blue-600', bg: 'bg-blue-100' };
     if (score >= 55) return { level: t.levels.average, color: 'text-yellow-600', bg: 'bg-yellow-100' };
-    if (score >= 40) return { level: t.levels.needsImprovement, color: 'text-orange-600', bg: 'bg-orange-100' };
+    if (score >= 45) return { level: t.levels.needsImprovement, color: 'text-orange-600', bg: 'bg-orange-100' };
     return { level: t.levels.roomToGrow, color: 'text-red-600', bg: 'bg-red-100' };
   };
 
@@ -57,7 +55,7 @@ const ResultsReport: React.FC<Props> = ({
 
   const getWPMLevel = (wpm: number) => {
     if (wpm < 25) return { level: t.levels.beginner, color: 'text-red-600' };
-    if (wpm < 35) return { level: t.levels.goodFoundation, color: 'text-orange-600' }; // TYPO FIX: wmp -> wpm
+    if (wpm < 35) return { level: t.levels.goodFoundation, color: 'text-orange-600' };
     if (wpm < 45) return { level: t.levels.average, color: 'text-yellow-600' };
     if (wpm < 60) return { level: t.levels.aboveAverage, color: 'text-green-600' };
     if (wpm < 80) return { level: t.levels.fast, color: 'text-green-700' };
@@ -66,12 +64,12 @@ const ResultsReport: React.FC<Props> = ({
 
   const wpmLevel = getWPMLevel(metrics.wpm || 0);
 
-  const getFrustrationLevelText = (score: number) => {
+  const getFlowLevelText = (score: number) => {
       if (score <= 2) return t.levels.veryCalm;
       if (score <= 4) return t.levels.normal;
-      if (score <= 6) return t.levels.frustrated;
-      if (score <= 8) return t.levels.veryFrustrated;
-      return t.levels.extremelyFrustrated;
+      if (score <= 6) return t.levels.disrupted;
+      if (score <= 8) return t.levels.veryDisrupted;
+      return t.levels.extremelyDisrupted;
   }
 
   return (
@@ -81,7 +79,7 @@ const ResultsReport: React.FC<Props> = ({
         <p className="text-gray-600 text-center mb-4 text-sm">{t.subtitle}</p>
         
         <div className="space-y-4">
-          {/* Overall Score Card - FIRST */}
+          {/* Overall Score Card */}
           <div className={`${scoreLevel.bg} rounded-xl p-4 text-center`}>
             <h3 className="text-base font-semibold text-gray-700 mb-2">{t.overallScoreTitle}</h3>
             <div className={`text-5xl font-bold ${scoreLevel.color} mb-1`}>
@@ -94,7 +92,7 @@ const ResultsReport: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Wasted Time Analysis - NEW PROMINENT SECTION */}
+          {/* Wasted Time Analysis */}
           <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border-2 border-red-200">
             <h3 className="text-lg font-semibold text-red-800 mb-3 text-center">{t.wastedTimeTitle}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -116,12 +114,12 @@ const ResultsReport: React.FC<Props> = ({
               </div>
             </div>
             <p className="text-center text-sm text-red-700 mt-3 font-medium">
-              **{t.yearlyLossEmphasis(yearlyWasteHours.toFixed(0))}**
+              {t.yearlyLossEmphasis(yearlyWasteHours.toFixed(0))}
             </p>
             <p className="text-center text-xs text-gray-600 mt-1">{t.yearlyLossSubtext}</p>
           </div>
 
-          {/* Main Performance Metrics - SECOND */}
+          {/* Main Performance Metrics */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.typingSpeed}</h3>
@@ -147,7 +145,7 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Error Breakdown - Enhanced */}
+          {/* Error Breakdown */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.languageErrors}</h3>
@@ -174,17 +172,17 @@ const ResultsReport: React.FC<Props> = ({
             </div>
             
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
-              <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.frustrationLevel}</h3>
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.flowLevel}</h3>
               <p className={`text-2xl font-bold ${metrics.frustrationScore <= 3 ? 'text-green-600' : metrics.frustrationScore <= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
                 {metrics.frustrationScore}/10
               </p>
               <p className="text-xs text-gray-600">
-                {getFrustrationLevelText(metrics.frustrationScore)}
+                {getFlowLevelText(metrics.frustrationScore)}
               </p>
             </div>
           </div>
 
-          {/* Score Breakdown - THIRD (if enabled) */}
+          {/* Score Breakdown */}
           {showBreakdown && scoreBreakdown && scoreBreakdown.breakdown.length > 0 && (
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-800 mb-3 text-sm">{t.deductionsBreakdown}</h3>
@@ -209,7 +207,6 @@ const ResultsReport: React.FC<Props> = ({
                   </div>
                   <div className="flex justify-between items-center text-blue-600 mt-1 pt-1 border-t">
                     <span className="font-semibold">{t.finalScore}:</span>
-                    {/* *** FIX: Display the consistent overallScore here *** */}
                     <span className="font-bold text-lg">{overallScore}</span>
                   </div>
                 </div>
@@ -217,7 +214,7 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Detailed Stats - FOURTH */}
+          {/* Detailed Stats */}
           <div className="bg-gray-50 rounded-lg p-3">
             <h3 className="font-semibold text-gray-700 mb-2 text-sm">{t.additionalStats}</h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
