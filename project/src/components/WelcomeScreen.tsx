@@ -3,14 +3,14 @@
 import React from 'react';
 
 interface Props {
+  language: 'en' | 'he';
   onNext: () => void;
   onAdminClick: () => void;
   setLanguage: (lang: 'en' | 'he') => void;
   t: any; // Translation object
 }
 
-const WelcomeScreen: React.FC<Props> = ({ onNext, onAdminClick, setLanguage, t }) => {
-  const currentLang = document.documentElement.lang || 'en';
+const WelcomeScreen: React.FC<Props> = ({ language, onNext, onAdminClick, setLanguage, t }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
@@ -21,7 +21,7 @@ const WelcomeScreen: React.FC<Props> = ({ onNext, onAdminClick, setLanguage, t }
             className="absolute top-4 right-4 text-gray-400 hover:text-blue-600 cursor-pointer p-2 z-20"
             title="Admin Access"
         >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
         </div>
@@ -35,20 +35,22 @@ const WelcomeScreen: React.FC<Props> = ({ onNext, onAdminClick, setLanguage, t }
               {t.subtitle}
             </p>
             {/* Language Switcher */}
-            <div className="mt-6 p-3 bg-gray-100 rounded-lg inline-flex items-center gap-4">
-                <p className="text-gray-700">{t.switchToHebrew}</p>
+            <div className="mt-6 p-3 bg-gray-100 rounded-lg inline-flex items-center gap-2">
+                <p className="text-gray-700">{t.switchLanguagePrompt}</p>
                 <button 
-                    onClick={() => setLanguage(currentLang === 'en' ? 'he' : 'en')}
+                    onClick={() => setLanguage(language === 'en' ? 'he' : 'en')}
                     className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition"
                 >
-                    {t.switchButtonHe}
+                    {t.switchLanguageButton}
                 </button>
             </div>
         </div>
         
         <div className="space-y-8">
-            <div className="bg-gray-50 p-6 rounded-xl border transition-all hover:shadow-lg hover:border-blue-200">
-                <h2 className="text-2xl font-bold text-gray-800 mb-3 flex items-center">
+            {/* FIX: Added text-center class */}
+            <div className="bg-gray-50 p-6 rounded-xl border transition-all hover:shadow-lg hover:border-blue-200 text-center">
+                {/* FIX: Removed flex classes to allow centering */}
+                <h2 className="text-2xl font-bold text-gray-800 mb-3">
                     {t.shapeFutureTitle}
                 </h2>
                 <p className="text-gray-700">
@@ -77,9 +79,10 @@ const WelcomeScreen: React.FC<Props> = ({ onNext, onAdminClick, setLanguage, t }
                 </div>
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-xl border transition-all hover:shadow-lg hover:border-purple-200">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                    {/* This key was missing in some versions of translations, ensure it exists */}
+            {/* FIX: Added text-center class */}
+            <div className="bg-gray-50 p-6 rounded-xl border transition-all hover:shadow-lg hover:border-purple-200 text-center">
+                {/* FIX: Removed flex classes to allow centering */}
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
                     {t.rewardTitle || 'A Thank You for Your Time'}
                 </h2>
                 <p className="text-gray-700 mb-4">{t.rewardText || 'As a token of our appreciation...'}</p>
