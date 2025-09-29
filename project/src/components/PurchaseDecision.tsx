@@ -1,3 +1,5 @@
+// src/components/PurchaseDecision.tsx
+
 import React, { useState, useMemo } from 'react';
 
 interface Props {
@@ -6,16 +8,13 @@ interface Props {
 }
 
 const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
-  // Defensive check: If translations are not provided, render an error message instead of crashing.
-  if (!t) {
+  // Defensive check
+  if (!t || !t.q1Title) {
     return (
         <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg text-center">
                 <h2 className="text-2xl font-bold text-red-700 mb-4">Component Error</h2>
-                <p className="text-gray-600">
-                    The translation data for the 'Purchase Decision' screen could not be loaded.
-                    This is a critical error. Please go back and try again.
-                </p>
+                <p className="text-gray-600">Translation data for 'Purchase Decision' screen is missing.</p>
             </div>
         </div>
     );
@@ -36,9 +35,11 @@ const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
     setAnswers(prev => {
         const currentRanked = prev.rankedFeatures;
         if (currentRanked.includes(featureId)) {
-            return prev;
+            // If already ranked, remove it
+            return { ...prev, rankedFeatures: currentRanked.filter(id => id !== featureId) };
         }
-        if (currentRanked.length < 3) {
+        // *** FIX: Allow up to 5 selections, not just 3 ***
+        if (currentRanked.length < 5) {
             return { ...prev, rankedFeatures: [...currentRanked, featureId] };
         }
         return prev;
@@ -58,7 +59,11 @@ const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
     }));
   };
 
-  const isFormValid = answers.overallValueProposition && answers.rankedFeatures.length === 3 && (answers.finalFeedbackText.length > 0 || answers.noFinalFeedback);
+  // *** FIX: Validate for 3 to 5 ranked features ***
+  const isFormValid = answers.overallValueProposition && 
+                      answers.rankedFeatures.length >= 3 && 
+                      answers.rankedFeatures.length <= 5 &&
+                      (answers.finalFeedbackText.length > 0 || answers.noFinalFeedback);
 
   const handleSubmit = () => {
     if (isFormValid) {
@@ -118,7 +123,7 @@ const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
                 </div>
             </div>
 
-            {/* Question 3.2 - Revamped with all options */}
+            {/* Question 3.2 */}
             <div className="bg-gray-50 rounded-lg p-6 border">
                 <div className="flex justify-between items-center mb-4">
                     <div>
@@ -131,7 +136,8 @@ const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
                     {rankingOptions.map(option => {
                         const rank = answers.rankedFeatures.indexOf(option.id) + 1;
                         const isRanked = rank > 0;
-                        const isDisabled = !isRanked && answers.rankedFeatures.length >= 3;
+                        // *** FIX: Logic now disables button only when 5 features are ranked ***
+                        const isDisabled = !isRanked && answers.rankedFeatures.length >= 5;
 
                         return (
                             <button 
@@ -161,7 +167,7 @@ const PurchaseDecision: React.FC<Props> = ({ onNext, t }) => {
                 </div>
             </div>
 
-            {/* Question 3.3 - Updated */}
+            {/* Question 3.3 */}
             <div className="bg-gray-50 rounded-lg p-6 border">
                 <h3 className="text-xl font-semibold text-gray-800 mb-1">{t.q3Title}</h3>
                 <p className="text-gray-600 mb-4">{t.q3Desc}</p>
