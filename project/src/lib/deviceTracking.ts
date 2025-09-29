@@ -48,24 +48,22 @@ export const getIPAddress = async (): Promise<string> => {
   }
 };
 
-// *** THE FIX IS HERE ***
-// Checks if user has submitted AND returns the discount code string or null
+// **FIXED**: בדיקה אם המשתמש כבר מילא + החזרת קוד הנחה
 export const checkIfAlreadySubmitted = async (fingerprint: string, ip: string): Promise<string | null> => {
   try {
     const { data, error } = await supabase
       .from('survey_responses_v2')
-      .select('discount_code') // FIX: Select the actual discount code
+      .select('id, discount_code') // Fetch discount code
       .or(`device_fingerprint.eq.${fingerprint},ip_address.eq.${ip}`)
       .eq('survey_completed', true)
       .limit(1)
-      .maybeSingle(); // Use maybeSingle for a cleaner result object
+      .maybeSingle(); // We only expect one result, but allow null
     
     if (error) {
       console.error('Error checking submission:', error);
       return null;
     }
     
-    // FIX: Return the code string itself, or null if no record was found
     return data ? data.discount_code : null;
   } catch (error) {
     console.error('Error in checkIfAlreadySubmitted:', error);
