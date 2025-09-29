@@ -7,12 +7,12 @@ interface Props {
   t: any; // Translation object
 }
 
-// Define symptom groups with new option
+// *** FIX: Added all new symptom keys to their respective groups ***
 const group1_symptoms = ['glance_icon', 'extra_shortcut', 'type_and_check', 'preventive_none'];
-const group2_symptoms = ['delete_word', 'wrong_punctuation', 'sent_wrong_lang'];
+const group2_symptoms = ['delete_word', 'wrong_punctuation', 'sent_wrong_lang', 'delete_line', 'go_back_fix', 'caps_lock_error', 'micro_none'];
 const group3_symptoms = [
   'mental_effort', 'shortcut_conflict', 'use_3rd_party', 
-  'avoid_multilingual', 'use_separate_apps', 'none_of_above'
+  'avoid_multilingual', 'use_separate_apps', 'self_talk', 'shortcut_memory', 'none_of_above'
 ];
 
 const FeatureRating: React.FC<Props> = ({ onNext, t }) => {
@@ -25,12 +25,53 @@ const FeatureRating: React.FC<Props> = ({ onNext, t }) => {
     copingMechanismNone: false,
   });
 
-  const toggleSymptom = (symptom: string) => {
-    setAwakeningSymptoms(prev =>
-      prev.includes(symptom)
-        ? prev.filter(item => item !== symptom)
-        : [...prev, symptom]
-    );
+  // *** FIX: Replaced simple toggle with a new, smarter handler for symptom selection ***
+  const handleSymptomToggle = (symptom: string) => {
+    setAwakeningSymptoms(prev => {
+      let newSelection = [...prev];
+      let group: string[] | null = null;
+      let noneOptionKey: string | null = null;
+
+      if (group1_symptoms.includes(symptom)) {
+        group = group1_symptoms;
+        noneOptionKey = 'preventive_none';
+      } else if (group2_symptoms.includes(symptom)) {
+        group = group2_symptoms;
+        noneOptionKey = 'micro_none';
+      } else if (group3_symptoms.includes(symptom)) {
+        group = group3_symptoms;
+        noneOptionKey = 'none_of_above';
+      }
+
+      if (!group) return prev; // Should not happen, but a safe fallback
+
+      const isNoneOption = symptom === noneOptionKey;
+
+      // Get current selections from the same group
+      const currentGroupSelections = prev.filter(s => group!.includes(s));
+
+      if (isNoneOption) {
+        // If "none" is already selected, deselect it. Otherwise, select only "none" for this group.
+        if (currentGroupSelections.includes(symptom)) {
+          return prev.filter(s => s !== symptom);
+        } else {
+          const otherGroupsSelections = prev.filter(s => !group!.includes(s));
+          return [...otherGroupsSelections, symptom];
+        }
+      } else {
+        // If a regular option is toggled
+        let newGroupSelections = currentGroupSelections.filter(s => s !== noneOptionKey); // Ensure "none" is deselected
+        
+        if (newGroupSelections.includes(symptom)) {
+          newGroupSelections = newGroupSelections.filter(s => s !== symptom); // Deselect
+        } else {
+          newGroupSelections.push(symptom); // Select
+        }
+        
+        const otherGroupsSelections = prev.filter(s => !group!.includes(s));
+        return [...otherGroupsSelections, ...newGroupSelections];
+      }
+    });
   };
 
   const handleDeepDiveChange = (field: keyof typeof deepDive, value: any) => {
@@ -46,7 +87,6 @@ const FeatureRating: React.FC<Props> = ({ onNext, t }) => {
     }));
   }
 
-  // Updated validation logic: at least one from each group
   const isGroup1Valid = group1_symptoms.some(symptom => awakeningSymptoms.includes(symptom));
   const isGroup2Valid = group2_symptoms.some(symptom => awakeningSymptoms.includes(symptom));
   const isGroup3Valid = group3_symptoms.some(symptom => awakeningSymptoms.includes(symptom));
@@ -101,27 +141,33 @@ const FeatureRating: React.FC<Props> = ({ onNext, t }) => {
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">{t.group1Title}</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('glance_icon')} checked={awakeningSymptoms.includes('glance_icon')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_glance_icon}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('extra_shortcut')} checked={awakeningSymptoms.includes('extra_shortcut')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_extra_shortcut}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('type_and_check')} checked={awakeningSymptoms.includes('type_and_check')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_type_and_check}</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('preventive_none')} checked={awakeningSymptoms.includes('preventive_none')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_preventive_none}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('glance_icon')} checked={awakeningSymptoms.includes('glance_icon')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_glance_icon}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('extra_shortcut')} checked={awakeningSymptoms.includes('extra_shortcut')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_extra_shortcut}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('type_and_check')} checked={awakeningSymptoms.includes('type_and_check')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_type_and_check}</span></label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('preventive_none')} checked={awakeningSymptoms.includes('preventive_none')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_preventive_none}</span></label>
               </div>
               
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">{t.group2Title}</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('delete_word')} checked={awakeningSymptoms.includes('delete_word')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_delete_word}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('wrong_punctuation')} checked={awakeningSymptoms.includes('wrong_punctuation')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_wrong_punctuation}</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('sent_wrong_lang')} checked={awakeningSymptoms.includes('sent_wrong_lang')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_sent_wrong_lang}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('delete_word')} checked={awakeningSymptoms.includes('delete_word')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_delete_word}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('wrong_punctuation')} checked={awakeningSymptoms.includes('wrong_punctuation')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_wrong_punctuation}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('sent_wrong_lang')} checked={awakeningSymptoms.includes('sent_wrong_lang')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_sent_wrong_lang}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('delete_line')} checked={awakeningSymptoms.includes('delete_line')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_delete_line}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('go_back_fix')} checked={awakeningSymptoms.includes('go_back_fix')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_go_back_fix}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('caps_lock_error')} checked={awakeningSymptoms.includes('caps_lock_error')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_caps_lock_error}</span></label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('micro_none')} checked={awakeningSymptoms.includes('micro_none')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_micro_none}</span></label>
               </div>
               
               <div className="bg-gray-50 rounded-lg p-4">
                   <div className="font-semibold text-lg text-gray-800 mb-2">{t.group3Title}</div>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('mental_effort')} checked={awakeningSymptoms.includes('mental_effort')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_mental_effort}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('shortcut_conflict')} checked={awakeningSymptoms.includes('shortcut_conflict')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_shortcut_conflict}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('use_3rd_party')} checked={awakeningSymptoms.includes('use_3rd_party')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_use_3rd_party}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('avoid_multilingual')} checked={awakeningSymptoms.includes('avoid_multilingual')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_avoid_multilingual}</span></label>
-                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('use_separate_apps')} checked={awakeningSymptoms.includes('use_separate_apps')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_use_separate_apps}</span></label>
-                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => toggleSymptom('none_of_above')} checked={awakeningSymptoms.includes('none_of_above')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_none_of_above}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('mental_effort')} checked={awakeningSymptoms.includes('mental_effort')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_mental_effort}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('shortcut_conflict')} checked={awakeningSymptoms.includes('shortcut_conflict')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_shortcut_conflict}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('use_3rd_party')} checked={awakeningSymptoms.includes('use_3rd_party')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_use_3rd_party}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('avoid_multilingual')} checked={awakeningSymptoms.includes('avoid_multilingual')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_avoid_multilingual}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('use_separate_apps')} checked={awakeningSymptoms.includes('use_separate_apps')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_use_separate_apps}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('self_talk')} checked={awakeningSymptoms.includes('self_talk')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_self_talk}</span></label>
+                  <label className="flex items-start mb-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('shortcut_memory')} checked={awakeningSymptoms.includes('shortcut_memory')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_shortcut_memory}</span></label>
+                  <label className="flex items-start p-2 rounded-md hover:bg-gray-100 cursor-pointer"><input type="checkbox" onChange={() => handleSymptomToggle('none_of_above')} checked={awakeningSymptoms.includes('none_of_above')} className="mt-1 me-3 h-5 w-5"/><span>{t.symptom_none_of_above}</span></label>
               </div>
             </div>
         </div>
