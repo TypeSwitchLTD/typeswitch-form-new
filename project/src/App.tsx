@@ -1,4 +1,4 @@
-src/App.tsx
+// src/App.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { SurveyData, TypingMetrics } from './types';
@@ -183,7 +183,6 @@ const setupProtections = () => {
     console.error = () => {};
   }
 };
-
 function App() {
   const [currentScreen, setCurrentScreen] = useState(0);
   const [showShareCard, setShowShareCard] = useState(false);
@@ -292,7 +291,6 @@ function App() {
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [currentScreen, language]);
-
   const saveToDatabase = async (dataToSave: SurveyData) => {
     if (saveAttempted.current || isSaving) return { success: false, id: null };
     setIsSaving(true);
@@ -445,7 +443,6 @@ function App() {
   };
   
   const getTranslations = (key: string) => t[key] || {};
-  
   if (checkingSubmission) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -562,8 +559,8 @@ function App() {
                     <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">{t.beforeExercise.scoringTitle}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                       <div className="text-center"><div className="text-xl md:text-2xl font-bold text-blue-600">70%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringError}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringErrorDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">15%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">15%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
                       <div className="text-center"><div className="text-xl md:text-2xl font-bold text-purple-600">5%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringSpeed}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringSpeedDesc}</div></div>
                     </div>
                   </div>
@@ -574,7 +571,7 @@ function App() {
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">Typing test available on desktop only</h3>
                       <p className="text-sm text-gray-700 mb-1">מבחן ההקלדה זמין רק עם מקלדת</p>
                       <p className="text-gray-600 mb-4">For accurate results, a physical keyboard is required</p>
-                      <button onClick={handleSkipTest} className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700transition">
+                      <button onClick={handleSkipTest} className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
                         המשך לשאלון
                       </button>
                     </div>
@@ -646,7 +643,7 @@ function App() {
         );
       
       case 'exercise1':
-        return <TypingExercise chosenExercise={isRetakeTest ? chosenExercise : chosenExercise} onComplete={handleNext} selectedLanguage={surveyData.demographics.languages?.[0] || 'Hebrew-English'} t={getTranslations('exercise1')} />;
+        return <TypingExercise chosenExercise={chosenExercise} onComplete={handleNext} selectedLanguage={surveyData.demographics.languages?.[0] || 'Hebrew-English'} t={getTranslations('exercise1')} />;
       
       case 'selfAssessment':
         return <SelfAssessment onNext={handleNext} t={getTranslations('selfAssessment')} />;
