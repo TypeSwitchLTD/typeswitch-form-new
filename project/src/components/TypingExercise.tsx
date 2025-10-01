@@ -7,7 +7,7 @@ interface Props {
   chosenExercise: string;
   onComplete: (data: any) => void;
   selectedLanguage: string;
-  t: any;
+  t: any; // Translation object
 }
 
 const exercises = {
@@ -40,6 +40,7 @@ const exercises = {
     },
     { 
       title: "Exercise 2 - Student Article",
+      // *** FIX: Added line breaks to the text ***
       text: `מחקרי הדמיה הראו כי אזורים במוח מופעלים באופן שונה בקרב בעלי ADHD, לרוב באקטיבציה נמוכה יותר.
 נמצא כי אזורים שונים הינם בעלי נפח קטן יותר בהשוואה לקבוצות ביקורת (Bush, 2011).
 המבנים המעורבים ב-ADHD מצויים באזורים כמו ה-Dorsolateral Prefrontal Cortex (DLPFC) וה-dorsal Anterior Cingulate Cortex (dACC).
@@ -64,6 +65,7 @@ const exercises = {
 };
 
 const punctuationRegex = /[.,!?;:\-(){}[\]"'•%/\\–_=+`~@#$^*<>|]/;
+
 
 const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedLanguage, t }) => {
   const [userInput, setUserInput] = useState('');
@@ -184,7 +186,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
 
     const last30 = currentInput.slice(-30);
     const hasVowels = /[aeiouאהוי]/i.test(last30);
-    const hasConsonants = /[bcdfghjklmnpqrstvwxyzبגدזحטכلمنسפצקرشת]/i.test(last30);
+    const hasConsonants = /[bcdfghjklmnpqrstvwxyzבגדזחטכלמנספצקרשת]/i.test(last30);
     
     if (last30.length >= 20 && (!hasVowels || !hasConsonants)) {
       handleCheatingDetected('⚠️ Please type real words from the text!');
@@ -194,7 +196,6 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
     return false;
   };
 
-  // IMPROVED: Better language detection
   const detectLanguage = (char: string): 'hebrew' | 'arabic' | 'english' | 'russian' | null => {
     if (/[א-ת]/.test(char)) return 'hebrew';
     if (/[\u0600-\u06FF]/.test(char)) return 'arabic';
@@ -218,31 +219,24 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
     }
   };
 
-  // IMPROVED: More accurate error detection
   const detectFinalErrors = (input: string): ErrorDetail[] => {
     const errors: ErrorDetail[] = [];
     const normalizedInput = normalizeText(input);
     const expectedChars = normalizedExerciseText.split('');
     const actualChars = normalizedInput.split('');
-    
-    for (let i = 0; i < Math.min(actualChars.length, expectedChars.length); i++) {
+    for (let i = 0; i < actualChars.length; i++) {
+      if (i >= expectedChars.length) break;
       const expected = expectedChars[i];
       const actual = actualChars[i];
-      
       if (expected !== actual) {
         let errorType: 'language' | 'punctuation' | 'typo' = 'typo';
         const expectedLang = detectLanguage(expected);
         const actualLang = detectLanguage(actual);
-        
-        // Check if it's a language error
         if (expectedLang && actualLang && expectedLang !== actualLang) {
           errorType = 'language';
-        } 
-        // Check if it's a punctuation error
-        else if (punctuationRegex.test(expected) || punctuationRegex.test(actual)) {
+        } else if (punctuationRegex.test(expected) || punctuationRegex.test(actual)) {
           errorType = 'punctuation';
         }
-        
         errors.push({ position: i, expected, actual, type: errorType, timestamp: Date.now() });
       }
     }
@@ -260,6 +254,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
       handleCheatingDetected('⚠️ Copy/Paste is not allowed! Please type the text manually.');
     };
     document.addEventListener('paste', preventPaste);
+    // Add similar logic for copy and cut
     return () => {
       document.removeEventListener('paste', preventPaste);
     };
@@ -272,57 +267,35 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
     const currentTime = Date.now();
     const delay = currentTime - lastKeystrokeTime;
 
-    // Track deletions
     if (newValue.length < oldValue.length) {
       setDeletions(prev => prev + (oldValue.length - newValue.length));
     }
 
-    // New character typed
     if (newValue.length > oldValue.length) {
       if (detectSuspiciousPattern(newValue)) return;
-      
       const newChar = newValue.slice(-1);
       const currentLang = detectLanguage(newChar);
-      
-      // Track language switches
       if (currentLang && lastLanguage && currentLang !== lastLanguage) {
         setLanguageSwitches(prev => prev + 1);
       }
       if (currentLang) setLastLanguage(currentLang);
 
-      // IMPROVED: Real-time error tracking
       const position = normalizeText(newValue).length - 1;
       const expectedChar = normalizedExerciseText[position];
-      
       if (expectedChar && newValue.slice(-1) !== expectedChar) {
         setAllMistakes(prev => new Set(prev).add(position));
-        
         const expectedLang = detectLanguage(expectedChar);
         const actualLang = detectLanguage(newValue.slice(-1));
-        
-        // Count language errors
         if (expectedLang && actualLang && expectedLang !== actualLang) {
           setRealTimeLanguageErrors(prev => prev + 1);
-        } 
-        // Count punctuation errors
-        else if (punctuationRegex.test(expectedChar) || punctuationRegex.test(newValue.slice(-1))) {
+        } else if (punctuationRegex.test(expectedChar) || punctuationRegex.test(newValue.slice(-1))) {
           setRealTimePunctuationErrors(prev => prev + 1);
         }
-      } else if (expectedChar && newValue.slice(-1) === expectedChar && allMistakes.has(position)) {
-        // User corrected a mistake
-        setCorrectedMistakes(prev => new Set(prev).add(position));
       }
-      
       checkLanguageConsistency(newValue);
     }
 
-    setKeystrokes(prev => [...prev, { 
-      key: newValue.slice(-1) || 'backspace', 
-      timestamp: currentTime, 
-      position: newValue.length, 
-      isBackspace: newValue.length < oldValue.length, 
-      delay 
-    }]);
+    setKeystrokes(prev => [...prev, { key: newValue.slice(-1) || 'backspace', timestamp: currentTime, position: newValue.length, isBackspace: newValue.length < oldValue.length, delay }]);
     setLastKeystrokeTime(currentTime);
     setUserInput(newValue);
   };
@@ -330,24 +303,16 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
   const calculateMetrics = (): TypingMetrics => {
     const normalizedInput = normalizeText(userInput);
     const finalErrors = detectFinalErrors(userInput);
-    
     const timeInMinutes = Math.max(0.1, (Date.now() - startTime) / 60000);
     const words = normalizedInput.split(/\s+/).filter(Boolean).length;
     let wpm = Math.round(words / timeInMinutes);
     wpm = Math.max(0, Math.min(150, wpm));
-    
-    // Calculate accuracy based on final errors
-    let accuracy = normalizedInput.length > 0 
-      ? Math.round(((normalizedInput.length - finalErrors.length) / normalizedInput.length) * 100) 
-      : 100;
+    let accuracy = normalizedInput.length > 0 ? Math.round(((normalizedInput.length - finalErrors.length) / normalizedInput.length) * 100) : 100;
     accuracy = Math.max(0, accuracy);
     
     const validDelays = keystrokes.map(k => k.delay).filter(d => d < 5000 && d > 0);
-    const averageDelay = validDelays.length > 0 
-      ? Math.round(validDelays.reduce((a, b) => a + b, 0) / validDelays.length) 
-      : 0;
+    const averageDelay = validDelays.length > 0 ? Math.round(validDelays.reduce((a, b) => a + b, 0) / validDelays.length) : 0;
     
-    // Calculate frustration score
     const frustrationFactors = [
       Math.min(2, finalErrors.length * 0.15),
       Math.min(2, allMistakes.size * 0.1),
@@ -359,14 +324,10 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
     ];
     const frustrationScore = Math.round(Math.min(10, frustrationFactors.reduce((a, b) => a + b, 0)));
 
-    // Separate error counts
-    const languageErrorCount = finalErrors.filter(e => e.type === 'language').length;
-    const punctuationErrorCount = finalErrors.filter(e => e.type === 'punctuation').length;
-
     return {
       totalErrors: finalErrors.length,
-      languageErrors: languageErrorCount,
-      punctuationErrors: punctuationErrorCount,
+      languageErrors: realTimeLanguageErrors,
+      punctuationErrors: realTimePunctuationErrors,
       deletions,
       corrections: correctedMistakes.size,
       languageSwitches,
