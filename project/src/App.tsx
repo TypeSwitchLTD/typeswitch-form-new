@@ -596,12 +596,12 @@ function App() {
                         <div onClick={() => handleStartChallenge('purchasing_email')} className="border-2 border-blue-200 hover:border-blue-400 bg-blue-50 rounded-lg p-6 cursor-pointer transition">
                           <h3 className="font-bold text-blue-800 text-lg mb-2">{t.beforeExercise.challenge1Name}</h3>
                           <p className="text-sm text-gray-700 mb-2">{t.beforeExercise.challenge1Desc}</p>
-                          <p className="text-xs text-gray-500">(ניתן להשלים לפחות 60% כדי להמשיך)</p>
+                          <p className="text-xs text-gray-500">(You can complete at least 60% to continue)</p>
                         </div>
                         <div onClick={() => handleStartChallenge('student_article')} className="border-2 border-purple-200 hover:border-purple-400 bg-purple-50 rounded-lg p-6 cursor-pointer transition">
                           <h3 className="font-bold text-purple-800 text-lg mb-2">{t.beforeExercise.challenge2Name}</h3>
                           <p className="text-sm text-gray-700 mb-2">{t.beforeExercise.challenge2Desc}</p>
-                          <p className="text-xs text-gray-500">(ניתן להשלים לפחות 60% כדי להמשיך)</p>
+                          <p className="text-xs text-gray-500">(You can complete at least 60% to continue)</p>
                         </div>
                       </div>
                       
