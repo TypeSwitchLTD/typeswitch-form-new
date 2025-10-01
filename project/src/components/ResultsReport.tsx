@@ -1,4 +1,134 @@
-="font-semibold text-gray-700 mb-1 text-xs">{t.finalAccuracy}</h3>
+// src/components/ResultsReport.tsx
+
+import React from 'react';
+import { TypingMetrics } from '../types';
+import { calculateOverallScore, getScoreBreakdown, calculateWastedTime } from '../App';
+
+interface Props {
+  metrics: TypingMetrics;
+  onNext: () => void;
+  onShare: () => void;
+  showBreakdown?: boolean;
+  isRetake?: boolean;
+  t: any;
+}
+
+const ResultsReport: React.FC<Props> = ({ 
+  metrics, 
+  onNext, 
+  onShare, 
+  showBreakdown = true,
+  isRetake = false,
+  t
+}) => {
+  if (!t || !t.levels) {
+    return (
+        <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg text-center">
+                <h2 className="text-2xl font-bold text-red-700 mb-4">Component Error</h2>
+                <p className="text-gray-600">Translation data for the 'Results Report' screen is missing or corrupted.</p>
+            </div>
+        </div>
+    );
+  }
+
+  const completionRate = (metrics as any).completionRate || 100;
+  const overallScore = calculateOverallScore(metrics, completionRate);
+  const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
+  const wastedTimeSeconds = calculateWastedTime(metrics);
+ 
+  const testDurationMinutes = Math.max(1, ((window as any).exerciseEndTime - (window as any).exerciseStartTime) / 60000) || 5;
+  const wastedSecondsPerMinute = wastedTimeSeconds / testDurationMinutes;
+  const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60;
+  const monthlyWasteHours = (dailyWasteMinutes * 22) / 60;
+  const yearlyWasteHours = monthlyWasteHours * 12;
+ 
+  const getScoreLevel = (score: number) => {
+    if (score >= 96) return { level: t.levels.professional, color: 'text-purple-600', bg: 'bg-purple-100' };
+    if (score >= 75) return { level: t.levels.excellent, color: 'text-green-600', bg: 'bg-green-100' };
+    if (score >= 40) return { level: t.levels.average, color: 'text-yellow-600', bg: 'bg-yellow-100' };
+    return { level: t.levels.needsImprovement, color: 'text-orange-600', bg: 'bg-orange-100' };
+  };
+
+  const scoreLevel = getScoreLevel(overallScore);
+
+  const getWPMLevel = (wpm: number) => {
+    if (wpm < 25) return { level: t.levels.beginner, color: 'text-red-600' };
+    if (wpm < 35) return { level: t.levels.goodFoundation, color: 'text-orange-600' };
+    if (wpm < 45) return { level: t.levels.average, color: 'text-yellow-600' };
+    if (wpm < 60) return { level: t.levels.aboveAverage, color: 'text-green-600' };
+    if (wpm < 80) return { level: t.levels.fast, color: 'text-green-700' };
+    return { level: t.levels.professional, color: 'text-purple-600' };
+  };
+
+  const wpmLevel = getWPMLevel(metrics.wpm || 0);
+
+  const getFlowLevelText = (score: number) => {
+      if (score <= 2) return t.levels.veryCalm;
+      if (score <= 4) return t.levels.normal;
+      if (score <= 6) return t.levels.disrupted;
+      if (score <= 8) return t.levels.veryDisrupted;
+      return t.levels.extremelyDisrupted;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl p-5 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">{t.title}</h2>
+        <p className="text-gray-600 text-center mb-4 text-sm">{t.subtitle}</p>
+        
+        <div className="space-y-4">
+          {/* Overall Score Card */}
+          <div className={`${scoreLevel.bg} rounded-xl p-4 text-center`}>
+            <h3 className="text-base font-semibold text-gray-700 mb-2">{t.overallScoreTitle}</h3>
+            <div className={`text-5xl font-bold ${scoreLevel.color} mb-1`}>
+              {overallScore}/100
+            </div>
+            <p className={`text-base font-semibold ${scoreLevel.color}`}>{scoreLevel.level}</p>
+            <p className="text-xs text-gray-600 mt-1">{t.basedOn}</p>
+            {overallScore < 75 && (
+              <p className="text-xs text-gray-600 mt-1">{t.encouragement}</p>
+            )}
+          </div>
+
+          {/* Wasted Time Analysis */}
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border-2 border-red-200">
+            <h3 className="text-lg font-semibold text-red-800 mb-3 text-center">{t.wastedTimeTitle}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{wastedTimeSeconds}s</div>
+                <div className="text-xs text-gray-600">{t.thisTest}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{dailyWasteMinutes.toFixed(1)}</div>
+                <div className="text-xs text-gray-600">{t.minutesPerDay}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{monthlyWasteHours.toFixed(1)}</div>
+                <div className="text-xs text-gray-600">{t.hoursPerMonth}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{yearlyWasteHours.toFixed(0)}</div>
+                <div className="text-xs text-gray-600">{t.hoursPerYear}</div>
+              </div>
+            </div>
+            <p className="text-center text-sm text-red-700 mt-3 font-medium">
+              {t.yearlyLossEmphasis(yearlyWasteHours.toFixed(0))}
+            </p>
+            <p className="text-center text-xs text-gray-600 mt-1">{t.yearlyLossSubtext}</p>
+          </div>
+
+          {/* Main Performance Metrics */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.typingSpeed}</h3>
+              <p className={`text-2xl font-bold ${wpmLevel.color}`}>{metrics.wpm || 0}</p>
+              <p className="text-xs text-gray-600">{t.wpmLabel}</p>
+              <p className={`text-xs mt-0.5 ${wpmLevel.color}`}>{wpmLevel.level}</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 text-center">
+              <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.finalAccuracy}</h3>
               <p className={`text-2xl font-bold ${metrics.accuracy >= 90 ? 'text-green-600' : metrics.accuracy >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
                 {metrics.accuracy || 0}%
               </p>
