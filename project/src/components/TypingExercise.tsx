@@ -6,6 +6,7 @@ import { ErrorDetail, KeystrokeEvent, TypingMetrics } from '../types';
 interface Props {
   chosenExercise: string;
   onComplete: (data: any) => void;
+  onBack: () => void;
   selectedLanguage: string;
   t: any; // Translation object
 }
@@ -40,7 +41,6 @@ const exercises = {
     },
     { 
       title: "Exercise 2 - Student Article",
-      // *** FIX: Added line breaks to the text ***
       text: `מחקרי הדמיה הראו כי אזורים במוח מופעלים באופן שונה בקרב בעלי ADHD, לרוב באקטיבציה נמוכה יותר.
 נמצא כי אזורים שונים הינם בעלי נפח קטן יותר בהשוואה לקבוצות ביקורת (Bush, 2011).
 המבנים המעורבים ב-ADHD מצויים באזורים כמו ה-Dorsolateral Prefrontal Cortex (DLPFC) וה-dorsal Anterior Cingulate Cortex (dACC).
@@ -67,7 +67,7 @@ const exercises = {
 const punctuationRegex = /[.,!?;:\-(){}[\]"'•%/\\–_=+`~@#$^*<>|]/;
 
 
-const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedLanguage, t }) => {
+const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, selectedLanguage, t }) => {
   const [userInput, setUserInput] = useState('');
   const [startTime, setStartTime] = useState<number>(0);
   const [keystrokes, setKeystrokes] = useState<KeystrokeEvent[]>([]);
@@ -254,7 +254,6 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
       handleCheatingDetected('⚠️ Copy/Paste is not allowed! Please type the text manually.');
     };
     document.addEventListener('paste', preventPaste);
-    // Add similar logic for copy and cut
     return () => {
       document.removeEventListener('paste', preventPaste);
     };
@@ -414,8 +413,13 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, selectedL
             autoCapitalize="off"
           />
         </div>
-        <div className="flex justify-between items-center">
-          <div />
+        <div className="flex justify-between items-center gap-3">
+          <button
+            onClick={onBack}
+            className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition"
+          >
+            Back
+          </button>
           <button
             onClick={handleComplete}
             disabled={progress < 60}
