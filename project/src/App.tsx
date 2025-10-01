@@ -522,7 +522,7 @@ function App() {
              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                <code className="text-green-800 font-mono font-bold">{existingDiscountCode || '...'}</code>
              </div>
-             <p className="text-xs text-gray-500 mt-2">תוכלו להשתמש בקוד הזה לזיהוי בפניות ליצירת קשר</p>
+             <p className="text-xs text-gray-500 mt-2">׳×׳•׳›׳׳• ׳׳”׳©׳×׳׳© ׳‘׳§׳•׳“ ׳”׳–׳” ׳׳–׳™׳”׳•׳™ ׳‘׳₪׳ ׳™׳•׳× ׳׳™׳¦׳™׳¨׳× ׳§׳©׳¨</p>
              <a href="https://typeswitch.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 text-sm font-semibold mt-2 inline-block">typeswitch.io</a>
            </div>
          </div>
@@ -564,10 +564,10 @@ function App() {
                   {isMobileDevice ? (
                     <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6 text-center">
                       <svg className="w-12 h-12 text-yellow-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m04m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">מבחן ההקלדה זמין רק במחשב/לפטופ</h3>
-                      <p className="text-gray-600 mb-4">לצורך דיוק מרבי, המבחן דורש מקלדת פיזית</p>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">׳׳‘׳—׳ ׳”׳”׳§׳׳“׳” ׳–׳׳™׳ ׳¨׳§ ׳‘׳׳—׳©׳‘/׳׳₪׳˜׳•׳₪</h3>
+                      <p className="text-gray-600 mb-4">׳׳¦׳•׳¨׳ ׳“׳™׳•׳§ ׳׳¨׳‘׳™, ׳”׳׳‘׳—׳ ׳“׳•׳¨׳© ׳׳§׳׳“׳× ׳₪׳™׳–׳™׳×</p>
                       <button onClick={handleSkipTest} className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
-                        המשך לשאלון
+                        ׳”׳׳©׳ ׳׳©׳׳׳•׳
                       </button>
                     </div>
                   ) : (
