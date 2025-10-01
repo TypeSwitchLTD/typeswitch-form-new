@@ -522,7 +522,7 @@ function App() {
              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                <code className="text-green-800 font-mono font-bold">{existingDiscountCode || '...'}</code>
              </div>
-             <p className="text-xs text-gray-500 mt-2">׳×׳•׳›׳׳• ׳׳”׳©׳×׳׳© ׳‘׳§׳•׳“ ׳”׳–׳” ׳׳–׳™׳”׳•׳™ ׳‘׳₪׳ ׳™׳•׳× ׳׳™׳¦׳™׳¨׳× ׳§׳©׳¨</p>
+             <p className="text-xs text-gray-500 mt-2">Use this code to contact us if any problem occurs</p>
              <a href="https://typeswitch.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 text-sm font-semibold mt-2 inline-block">typeswitch.io</a>
            </div>
          </div>
