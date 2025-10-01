@@ -615,7 +615,6 @@ function App() {
                     <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6 text-center">
                       <svg className="w-12 h-12 text-yellow-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">Typing test available on desktop only</h3>
-                      <p className="text-sm text-gray-700 mb-1">מבחן ההקלדה זמין רק עם מקלדת</p>
                       <p className="text-gray-600 mb-4">For accurate results, a physical keyboard is required</p>
                       <button onClick={handleSkipTest} className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
                         {t.beforeExercise.mobileWarningButton}
@@ -650,8 +649,7 @@ function App() {
       
       case 'results':
         return <ResultsReport metrics={surveyData.metrics} onNext={isRetakeTest ? handleResultsClose : handleNext} onShare={handleShowShareCard} isRetake={isRetakeTest} t={getTranslations('results')} />;
-      
-      case 'featureRating':
+        case 'featureRating':
         return <FeatureRating onNext={handleNext} t={getTranslations('featureRating')} />;
         
       case 'purchase':
