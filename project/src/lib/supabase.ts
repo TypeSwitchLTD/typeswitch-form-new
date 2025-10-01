@@ -7,49 +7,56 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // SYNCHRONIZED SCORING ALGORITHM (40-100 range)
+// Accuracy: 70% | Flow: 15% | Completion: 10% | Speed: 5%
 function calculateOverallScore(metrics: any): number {
   if (!metrics || metrics.wpm === undefined) return 0;
   
   const completionRate = (metrics as any).completionRate || 100;
   let score = 100; // Start from 100
   
-  // 1. LANGUAGE ERRORS (most critical) - up to -25
-  const languageErrorPenalty = Math.min(25, metrics.languageErrors * 2.5);
+  // 1. ACCURACY (70 points total)
+  // Language Errors - up to -35 points
+  const languageErrorPenalty = Math.min(35, metrics.languageErrors * 2.0);
   score -= languageErrorPenalty;
   
-  // 2. PUNCTUATION ERRORS - up to -10
-  const punctuationPenalty = Math.min(10, metrics.punctuationErrors * 0.8);
+  // Punctuation Errors - up to -20 points
+  const punctuationPenalty = Math.min(20, metrics.punctuationErrors * 2.0);
   score -= punctuationPenalty;
   
-  // 3. DELETIONS (only above 15) - up to -8
+  // Other Typing Errors - up to -15 points
+  const otherErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
+  const otherErrorPenalty = Math.min(15, otherErrors * 1.5);
+  score -= otherErrorPenalty;
+  
+  // 2. FLOW (15 points total)
+  // Deletions (only above 15) - up to -10 points
   if (metrics.deletions > 15) {
-    const deletionPenalty = Math.min(8, (metrics.deletions - 15) * 0.4);
+    const deletionPenalty = Math.min(10, (metrics.deletions - 15) * 0.6);
     score -= deletionPenalty;
   }
   
-  // 4. COMPLETION - up to -10
+  // Frustration Score - up to -5 points
+  const flowPenalty = Math.min(5, metrics.frustrationScore * 1.0);
+  score -= flowPenalty;
+  
+  // 3. COMPLETION (10 points total)
   if (completionRate < 100) {
     const missingPercent = 100 - completionRate;
-    const completionPenalty = Math.min(10, (missingPercent / 5) * 0.5);
+    const completionPenalty = Math.min(10, missingPercent * 0.1);
     score -= completionPenalty;
   }
   
-  // 5. SPEED (WPM) - bonus/penalty (-8 to +5)
+  // 4. SPEED (5 points total) - WPM bonus/penalty
   let speedAdjustment = 0;
-  if (metrics.wpm >= 70) speedAdjustment = 5;
-  else if (metrics.wpm >= 60) speedAdjustment = 2;
-  else if (metrics.wpm >= 45) speedAdjustment = 0;
-  else if (metrics.wpm >= 30) speedAdjustment = -3;
-  else if (metrics.wpm >= 20) speedAdjustment = -5;
-  else speedAdjustment = -8;
+  if (metrics.wpm >= 60) speedAdjustment = 3;
+  else if (metrics.wpm >= 45) speedAdjustment = 1;
+  else if (metrics.wpm >= 30) speedAdjustment = 0;
+  else if (metrics.wpm >= 20) speedAdjustment = -1;
+  else speedAdjustment = -2;
   score += speedAdjustment;
   
-  // 6. TYPING FLOW (frustrationScore) - up to -5
-  const flowPenalty = Math.min(5, metrics.frustrationScore * 0.5);
-  score -= flowPenalty;
-  
   // Floor: 40, Ceiling: 100
-  return Math.max(40, Math.min(100, Math.round(score)));
+  return Math.round(Math.max(40, Math.min(100, score)));
 }
 
 export async function saveSurveyData(surveyData: SurveyData, discountCode: string) {
