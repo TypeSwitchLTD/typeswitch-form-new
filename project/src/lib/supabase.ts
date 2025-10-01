@@ -11,46 +11,42 @@ function calculateOverallScore(metrics: any): number {
   if (!metrics || metrics.wpm === undefined) return 0;
   
   const completionRate = (metrics as any).completionRate || 100;
-  let score = 100;
+  let score = 100; // Start from 100
   
-  // 1. LANGUAGE ERRORS - up to -35
-  const languageErrorPenalty = Math.min(35, metrics.languageErrors * 2.0);
+  // 1. LANGUAGE ERRORS (most critical) - up to -25
+  const languageErrorPenalty = Math.min(25, metrics.languageErrors * 2.5);
   score -= languageErrorPenalty;
   
-  // 2. PUNCTUATION ERRORS - up to -15
-  const punctuationPenalty = Math.min(15, metrics.punctuationErrors * 2.0);
+  // 2. PUNCTUATION ERRORS - up to -10
+  const punctuationPenalty = Math.min(10, metrics.punctuationErrors * 0.8);
   score -= punctuationPenalty;
   
-  // 3. OTHER TYPING ERRORS - up to -10
-  const otherErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
-  const otherErrorsPenalty = Math.min(10, otherErrors * 1.5);
-  score -= otherErrorsPenalty;
-  
-  // 4. DELETIONS (only above 15) - up to -10
+  // 3. DELETIONS (only above 15) - up to -8
   if (metrics.deletions > 15) {
-    const deletionPenalty = Math.min(10, (metrics.deletions - 15) * 0.6);
+    const deletionPenalty = Math.min(8, (metrics.deletions - 15) * 0.4);
     score -= deletionPenalty;
   }
   
-  // 5. FRUSTRATION SCORE - up to -10
-  const flowPenalty = Math.min(10, metrics.frustrationScore * 1.0);
-  score -= flowPenalty;
-  
-  // 6. COMPLETION - up to -10
+  // 4. COMPLETION - up to -10
   if (completionRate < 100) {
     const missingPercent = 100 - completionRate;
-    const completionPenalty = Math.min(10, (missingPercent / 10) * 1.0);
+    const completionPenalty = Math.min(10, (missingPercent / 5) * 0.5);
     score -= completionPenalty;
   }
   
-  // 7. SPEED (WPM) - bonus/penalty (-2 to +3)
+  // 5. SPEED (WPM) - bonus/penalty (-8 to +5)
   let speedAdjustment = 0;
-  if (metrics.wpm >= 60) speedAdjustment = 3;
-  else if (metrics.wpm >= 45) speedAdjustment = 1;
-  else if (metrics.wpm >= 30) speedAdjustment = 0;
-  else if (metrics.wpm >= 20) speedAdjustment = -1;
-  else speedAdjustment = -2;
+  if (metrics.wpm >= 70) speedAdjustment = 5;
+  else if (metrics.wpm >= 60) speedAdjustment = 2;
+  else if (metrics.wpm >= 45) speedAdjustment = 0;
+  else if (metrics.wpm >= 30) speedAdjustment = -3;
+  else if (metrics.wpm >= 20) speedAdjustment = -5;
+  else speedAdjustment = -8;
   score += speedAdjustment;
+  
+  // 6. TYPING FLOW (frustrationScore) - up to -5
+  const flowPenalty = Math.min(5, metrics.frustrationScore * 0.5);
+  score -= flowPenalty;
   
   // Floor: 40, Ceiling: 100
   return Math.max(40, Math.min(100, Math.round(score)));
@@ -102,7 +98,7 @@ export async function saveSurveyData(surveyData: SurveyData, discountCode: strin
       feature_ranking: surveyData.epiphany?.rankedFeatures || [],
       final_feedback_text: surveyData.epiphany?.finalFeedbackText || null,
       
-      // Analytics (FIXED)
+      // Analytics (NEW)
       screen_times: surveyData.screenTimes || {},
       drop_off_screen: surveyData.dropOffScreen || null,
       browser_closed_at: surveyData.browserClosedAt || null,
