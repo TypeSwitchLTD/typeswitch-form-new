@@ -25,46 +25,42 @@ import { translations } from './lib/translations';
 
 // NEW SCORING ALGORITHM - Range 40-100
 export const calculateOverallScore = (metrics: TypingMetrics, completionRate: number = 100): number => {
-  let score = 100;
+  let score = 100; // Start from 100
   
-  // 1. LANGUAGE ERRORS - up to -35
-  const languageErrorPenalty = Math.min(35, metrics.languageErrors * 2.0);
+  // 1. LANGUAGE ERRORS (most critical) - up to -25
+  const languageErrorPenalty = Math.min(25, metrics.languageErrors * 2.5);
   score -= languageErrorPenalty;
   
-  // 2. PUNCTUATION ERRORS - up to -15
-  const punctuationPenalty = Math.min(15, metrics.punctuationErrors * 2.0);
+  // 2. PUNCTUATION ERRORS - up to -10
+  const punctuationPenalty = Math.min(10, metrics.punctuationErrors * 0.8);
   score -= punctuationPenalty;
   
-  // 3. OTHER TYPING ERRORS - up to -10
-  const otherErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
-  const otherErrorsPenalty = Math.min(10, otherErrors * 1.5);
-  score -= otherErrorsPenalty;
-  
-  // 4. DELETIONS (only above 15) - up to -10
+  // 3. DELETIONS (only above 15) - up to -8
   if (metrics.deletions > 15) {
-    const deletionPenalty = Math.min(10, (metrics.deletions - 15) * 0.6);
+    const deletionPenalty = Math.min(8, (metrics.deletions - 15) * 0.4);
     score -= deletionPenalty;
   }
   
-  // 5. FRUSTRATION SCORE - up to -10
-  const flowPenalty = Math.min(10, metrics.frustrationScore * 1.0);
-  score -= flowPenalty;
-  
-  // 6. COMPLETION - up to -10
+  // 4. COMPLETION - up to -10
   if (completionRate < 100) {
     const missingPercent = 100 - completionRate;
-    const completionPenalty = Math.min(10, (missingPercent / 10) * 1.0);
+    const completionPenalty = Math.min(10, (missingPercent / 5) * 0.5);
     score -= completionPenalty;
   }
   
-  // 7. SPEED (WPM) - bonus/penalty (-2 to +3)
+  // 5. SPEED (WPM) - bonus/penalty (-8 to +5)
   let speedAdjustment = 0;
-  if (metrics.wpm >= 60) speedAdjustment = 3;
-  else if (metrics.wpm >= 45) speedAdjustment = 1;
-  else if (metrics.wpm >= 30) speedAdjustment = 0;
-  else if (metrics.wpm >= 20) speedAdjustment = -1;
-  else speedAdjustment = -2;
+  if (metrics.wpm >= 70) speedAdjustment = 5;
+  else if (metrics.wpm >= 60) speedAdjustment = 2;
+  else if (metrics.wpm >= 45) speedAdjustment = 0;
+  else if (metrics.wpm >= 30) speedAdjustment = -3;
+  else if (metrics.wpm >= 20) speedAdjustment = -5;
+  else speedAdjustment = -8;
   score += speedAdjustment;
+  
+  // 6. TYPING FLOW (frustrationScore) - up to -5
+  const flowPenalty = Math.min(5, metrics.frustrationScore * 0.5);
+  score -= flowPenalty;
   
   // Floor: 40, Ceiling: 100
   return Math.max(40, Math.min(100, Math.round(score)));
@@ -84,7 +80,7 @@ export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number
   const breakdown = [];
   
   if (metrics.languageErrors > 0) {
-    const penalty = Math.min(35, metrics.languageErrors * 2.0);
+    const penalty = Math.min(25, metrics.languageErrors * 2.5);
     breakdown.push({ 
       category: 'Language Errors', 
       penalty, 
@@ -93,7 +89,7 @@ export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number
   }
   
   if (metrics.punctuationErrors > 0) {
-    const penalty = Math.min(15, metrics.punctuationErrors * 2.0);
+    const penalty = Math.min(10, metrics.punctuationErrors * 0.8);
     breakdown.push({ 
       category: 'Punctuation Errors', 
       penalty, 
@@ -101,18 +97,8 @@ export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number
     });
   }
   
-  const otherErrors = Math.max(0, metrics.totalMistakesMade - metrics.languageErrors - metrics.punctuationErrors);
-  if (otherErrors > 0) {
-    const penalty = Math.min(10, otherErrors * 1.5);
-    breakdown.push({ 
-      category: 'Other Typing Errors', 
-      penalty, 
-      reason: `${otherErrors} regular typing mistakes` 
-    });
-  }
-  
   if (metrics.deletions > 15) {
-    const penalty = Math.min(10, (metrics.deletions - 15) * 0.6);
+    const penalty = Math.min(8, (metrics.deletions - 15) * 0.4);
     breakdown.push({ 
       category: 'Excessive Deletions', 
       penalty, 
@@ -120,17 +106,8 @@ export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number
     });
   }
   
-  if (metrics.frustrationScore > 0) {
-    const penalty = Math.min(10, metrics.frustrationScore * 1.0);
-    breakdown.push({ 
-      category: 'Flow Disruption', 
-      penalty, 
-      reason: `${metrics.frustrationScore}/10 flow score` 
-    });
-  }
-  
   if (completionRate < 100) {
-    const penalty = Math.min(10, ((100 - completionRate) / 10) * 1.0);
+    const penalty = Math.min(10, ((100 - completionRate) / 5) * 0.5);
     breakdown.push({ 
       category: 'Incomplete Text', 
       penalty, 
@@ -138,15 +115,25 @@ export const getScoreBreakdown = (metrics: TypingMetrics, completionRate: number
     });
   }
   
-  if (metrics.wpm < 30) {
+  if (metrics.wpm < 45) {
     let penalty = 0;
-    if (metrics.wpm >= 20) penalty = 1;
-    else penalty = 2;
+    if (metrics.wpm >= 30) penalty = 3;
+    else if (metrics.wpm >= 20) penalty = 5;
+    else penalty = 8;
     
     breakdown.push({ 
       category: 'Typing Speed', 
       penalty, 
       reason: `${metrics.wpm} WPM (below average)` 
+    });
+  }
+  
+  if (metrics.frustrationScore > 0) {
+    const penalty = Math.min(5, metrics.frustrationScore * 0.5);
+    breakdown.push({ 
+      category: 'Flow Disruption', 
+      penalty, 
+      reason: `${metrics.frustrationScore}/10 flow score` 
     });
   }
   
@@ -158,8 +145,10 @@ type Language = 'en' | 'he';
 
 // PROTECTION LAYER
 const setupProtections = () => {
+  // Disable right-click
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   
+  // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
   document.addEventListener('keydown', (e) => {
     if (
       e.key === 'F12' ||
@@ -170,6 +159,7 @@ const setupProtections = () => {
     }
   });
   
+  // Detect DevTools
   const devtools = /./;
   devtools.toString = function() {
     console.warn('DevTools detected - Please complete the survey normally');
@@ -177,12 +167,14 @@ const setupProtections = () => {
   };
   console.log('%c', devtools);
   
+  // Clean console in production
   if (process.env.NODE_ENV === 'production') {
     console.log = () => {};
     console.warn = () => {};
     console.error = () => {};
   }
 };
+
 function App() {
   const [currentScreen, setCurrentScreen] = useState(0);
   const [showShareCard, setShowShareCard] = useState(false);
@@ -225,17 +217,18 @@ function App() {
   const screens = ['welcome', 'demographics', 'beforeExercise', 'exercise1', 'selfAssessment', 'results', 'featureRating', 'purchase', 'thankYou'];
   const [showLanguageSelect, setShowLanguageSelect] = useState(false);
   
+  // Setup protections on mount
   useEffect(() => {
     setupProtections();
   }, []);
   
-  // Track screen time - FIXED
+  // Track screen time
   useEffect(() => {
     const screenName = screens[currentScreen];
     screenStartTime.current = Date.now();
     
     return () => {
-      const timeSpent = Math.round((Date.now() - screenStartTime.current) / 1000);
+      const timeSpent = Date.now() - screenStartTime.current;
       setScreenTimes(prev => ({
         ...prev,
         [screenName]: (prev[screenName] || 0) + timeSpent
@@ -243,11 +236,12 @@ function App() {
     };
   }, [currentScreen]);
   
-  // Track page visibility (drop-off detection) - FIXED
+  // Track page visibility (drop-off detection)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && !surveyCompleted) {
         const dropOffScreen = screens[currentScreen];
+        // Save drop-off data (will be sent if user returns and completes)
         setSurveyData(prev => ({
           ...prev,
           dropOffScreen,
@@ -291,6 +285,7 @@ function App() {
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [currentScreen, language]);
+
   const saveToDatabase = async (dataToSave: SurveyData) => {
     if (saveAttempted.current || isSaving) return { success: false, id: null };
     setIsSaving(true);
@@ -443,6 +438,7 @@ function App() {
   };
   
   const getTranslations = (key: string) => t[key] || {};
+  
   if (checkingSubmission) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -526,7 +522,7 @@ function App() {
              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                <code className="text-green-800 font-mono font-bold">{existingDiscountCode || '...'}</code>
              </div>
-             <p className="text-xs text-gray-500 mt-2">You can use this code to identify yourself when contacting us</p>
+             <p className="text-xs text-gray-500 mt-2">תוכלו להשתמש בקוד הזה לזיהוי בפניות ליצירת קשר</p>
              <a href="https://typeswitch.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 text-sm font-semibold mt-2 inline-block">typeswitch.io</a>
            </div>
          </div>
@@ -558,19 +554,18 @@ function App() {
                   <div className="bg-blue-50 rounded-xl p-4 md:p-6 mb-6">
                     <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">{t.beforeExercise.scoringTitle}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-blue-600">70%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringError}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringErrorDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">15%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-purple-600">5%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringSpeed}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringSpeedDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-blue-600">50%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringError}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringErrorDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">20%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-purple-600">20%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringSpeed}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringSpeedDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
                     </div>
                   </div>
                   
                   {isMobileDevice ? (
                     <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6 text-center">
-                      <svg className="w-12 h-12 text-yellow-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">Typing test available on desktop only</h3>
-                      <p className="text-sm text-gray-700 mb-1">מבחן ההקלדה זמין רק עם מקלדת</p>
-                      <p className="text-gray-600 mb-4">For accurate results, a physical keyboard is required</p>
+                      <svg className="w-12 h-12 text-yellow-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m04m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">מבחן ההקלדה זמין רק במחשב/לפטופ</h3>
+                      <p className="text-gray-600 mb-4">לצורך דיוק מרבי, המבחן דורש מקלדת פיזית</p>
                       <button onClick={handleSkipTest} className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
                         המשך לשאלון
                       </button>
@@ -604,10 +599,10 @@ function App() {
                   <div className="bg-blue-50 rounded-xl p-4 md:p-6 mb-6">
                     <h3 className="text-lg font-semibold text-blue-800 mb-4 text-center">{t.beforeExercise.scoringTitle}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-blue-600">70%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringError}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringErrorDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">15%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
-                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-purple-600">5%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringSpeed}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringSpeedDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-blue-600">50%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringError}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringErrorDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-green-600">20%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringCompletion}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringCompletionDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-purple-600">20%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringSpeed}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringSpeedDesc}</div></div>
+                      <div className="text-center"><div className="text-xl md:text-2xl font-bold text-orange-600">10%</div><div className="text-xs md:text-sm text-gray-700 font-medium">{t.beforeExercise.scoringFlow}</div><div className="text-xs text-gray-500">{t.beforeExercise.scoringFlowDesc}</div></div>
                     </div>
                   </div>
                   
@@ -642,14 +637,15 @@ function App() {
         );
       
       case 'exercise1':
-        return <TypingExercise chosenExercise={chosenExercise} onComplete={handleNext} selectedLanguage={surveyData.demographics.languages?.[0] || 'Hebrew-English'} t={getTranslations('exercise1')} />;
+        return <TypingExercise chosenExercise={isRetakeTest ? 'purchasing_email' : chosenExercise} onComplete={handleNext} selectedLanguage={surveyData.demographics.languages?.[0] || 'Hebrew-English'} t={getTranslations('exercise1')} />;
       
       case 'selfAssessment':
         return <SelfAssessment onNext={handleNext} t={getTranslations('selfAssessment')} />;
       
       case 'results':
         return <ResultsReport metrics={surveyData.metrics} onNext={isRetakeTest ? handleResultsClose : handleNext} onShare={handleShowShareCard} isRetake={isRetakeTest} t={getTranslations('results')} />;
-        case 'featureRating':
+      
+      case 'featureRating':
         return <FeatureRating onNext={handleNext} t={getTranslations('featureRating')} />;
         
       case 'purchase':
