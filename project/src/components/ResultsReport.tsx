@@ -23,12 +23,12 @@ const ResultsReport: React.FC<Props> = ({
 }) => {
   if (!t || !t.levels) {
     return (
-        <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg text-center">
-                <h2 className="text-2xl font-bold text-red-700 mb-4">Component Error</h2>
-                <p className="text-gray-600">Translation data for the 'Results Report' screen is missing or corrupted.</p>
-            </div>
+      <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg text-center">
+          <h2 className="text-2xl font-bold text-red-700 mb-4">Component Error</h2>
+          <p className="text-gray-600">Translation data for the Results Report screen is missing or corrupted.</p>
         </div>
+      </div>
     );
   }
 
@@ -36,13 +36,13 @@ const ResultsReport: React.FC<Props> = ({
   const overallScore = calculateOverallScore(metrics, completionRate);
   const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
   const wastedTimeSeconds = calculateWastedTime(metrics);
- 
+  
   const testDurationMinutes = Math.max(1, ((window as any).exerciseEndTime - (window as any).exerciseStartTime) / 60000) || 5;
   const wastedSecondsPerMinute = wastedTimeSeconds / testDurationMinutes;
   const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60;
   const monthlyWasteHours = (dailyWasteMinutes * 22) / 60;
   const yearlyWasteHours = monthlyWasteHours * 12;
- 
+  
   const getScoreLevel = (score: number) => {
     if (score >= 96) return { level: t.levels.professional, color: 'text-purple-600', bg: 'bg-purple-100' };
     if (score >= 75) return { level: t.levels.excellent, color: 'text-green-600', bg: 'bg-green-100' };
@@ -64,12 +64,12 @@ const ResultsReport: React.FC<Props> = ({
   const wpmLevel = getWPMLevel(metrics.wpm || 0);
 
   const getFlowLevelText = (score: number) => {
-      if (score <= 2) return t.levels.veryCalm;
-      if (score <= 4) return t.levels.normal;
-      if (score <= 6) return t.levels.disrupted;
-      if (score <= 8) return t.levels.veryDisrupted;
-      return t.levels.extremelyDisrupted;
-  }
+    if (score <= 2) return t.levels.veryCalm;
+    if (score <= 4) return t.levels.normal;
+    if (score <= 6) return t.levels.disrupted;
+    if (score <= 8) return t.levels.veryDisrupted;
+    return t.levels.extremelyDisrupted;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -78,7 +78,6 @@ const ResultsReport: React.FC<Props> = ({
         <p className="text-gray-600 text-center mb-4 text-sm">{t.subtitle}</p>
         
         <div className="space-y-4">
-          {/* Overall Score Card */}
           <div className={`${scoreLevel.bg} rounded-xl p-4 text-center`}>
             <h3 className="text-base font-semibold text-gray-700 mb-2">{t.overallScoreTitle}</h3>
             <div className={`text-5xl font-bold ${scoreLevel.color} mb-1`}>
@@ -91,7 +90,6 @@ const ResultsReport: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Wasted Time Analysis */}
           <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border-2 border-red-200">
             <h3 className="text-lg font-semibold text-red-800 mb-3 text-center">{t.wastedTimeTitle}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -118,7 +116,6 @@ const ResultsReport: React.FC<Props> = ({
             <p className="text-center text-xs text-gray-600 mt-1">{t.yearlyLossSubtext}</p>
           </div>
 
-          {/* Main Performance Metrics */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.typingSpeed}</h3>
@@ -144,7 +141,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Error Breakdown */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.languageErrors}</h3>
@@ -181,7 +177,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Score Breakdown */}
           {showBreakdown && scoreBreakdown && scoreBreakdown.breakdown.length > 0 && (
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-800 mb-3 text-sm">{t.deductionsBreakdown}</h3>
@@ -213,7 +208,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Detailed Stats */}
           <div className="bg-gray-50 rounded-lg p-3">
             <h3 className="font-semibold text-gray-700 mb-2 text-sm">{t.additionalStats}</h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -236,7 +230,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Share Section - For Retakes */}
           {isRetake && (
             <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 text-center">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">{t.shareTitle}</h3>
@@ -253,7 +246,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Call to Action - LAST (only for non-retake) */}
           {!isRetake && (
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 text-center">
               <h3 className="text-base font-semibold mb-2">{t.ctaTitle}</h3>
@@ -267,7 +259,6 @@ const ResultsReport: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Close Button - For Retakes Only */}
           {isRetake && (
             <div className="text-center pt-4 border-t">
               <button
