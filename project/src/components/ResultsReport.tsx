@@ -36,13 +36,13 @@ const ResultsReport: React.FC<Props> = ({
   const overallScore = calculateOverallScore(metrics, completionRate);
   const scoreBreakdown = showBreakdown ? getScoreBreakdown(metrics, completionRate) : null;
   const wastedTimeSeconds = calculateWastedTime(metrics);
-  
+ 
   const testDurationMinutes = Math.max(1, ((window as any).exerciseEndTime - (window as any).exerciseStartTime) / 60000) || 5;
   const wastedSecondsPerMinute = wastedTimeSeconds / testDurationMinutes;
   const dailyWasteMinutes = (wastedSecondsPerMinute * 90) / 60;
   const monthlyWasteHours = (dailyWasteMinutes * 22) / 60;
   const yearlyWasteHours = monthlyWasteHours * 12;
-  
+ 
   const getScoreLevel = (score: number) => {
     if (score >= 96) return { level: t.levels.professional, color: 'text-purple-600', bg: 'bg-purple-100' };
     if (score >= 75) return { level: t.levels.excellent, color: 'text-green-600', bg: 'bg-green-100' };
@@ -76,7 +76,7 @@ const ResultsReport: React.FC<Props> = ({
       <div className="bg-white rounded-xl shadow-xl p-5 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">{t.title}</h2>
         <p className="text-gray-600 text-center mb-4 text-sm">{t.subtitle}</p>
-        
+       
         <div className="space-y-4">
           <div className={`${scoreLevel.bg} rounded-xl p-4 text-center`}>
             <h3 className="text-base font-semibold text-gray-700 mb-2">{t.overallScoreTitle}</h3>
@@ -123,7 +123,7 @@ const ResultsReport: React.FC<Props> = ({
               <p className="text-xs text-gray-600">{t.wpmLabel}</p>
               <p className={`text-xs mt-0.5 ${wpmLevel.color}`}>{wpmLevel.level}</p>
             </div>
-            
+           
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.finalAccuracy}</h3>
               <p className={`text-2xl font-bold ${metrics.accuracy >= 90 ? 'text-green-600' : metrics.accuracy >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -131,7 +131,7 @@ const ResultsReport: React.FC<Props> = ({
               </p>
               <p className="text-xs text-gray-600">{t.accuracySubtext}</p>
             </div>
-            
+           
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.textCompleted}</h3>
               <p className={`text-2xl font-bold ${completionRate >= 90 ? 'text-green-600' : completionRate >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -149,7 +149,7 @@ const ResultsReport: React.FC<Props> = ({
               </p>
               <p className="text-xs text-gray-600">{t.langErrorSubtext}</p>
             </div>
-            
+           
             <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.punctuationErrors}</h3>
               <p className={`text-2xl font-bold ${metrics.punctuationErrors <= 2 ? 'text-green-600' : metrics.punctuationErrors <= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -157,7 +157,7 @@ const ResultsReport: React.FC<Props> = ({
               </p>
               <p className="text-xs text-gray-600">{t.puncErrorSubtext}</p>
             </div>
-            
+           
             <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.deletionsMade}</h3>
               <p className={`text-2xl font-bold ${metrics.deletions <= 10 ? 'text-green-600' : metrics.deletions <= 20 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -165,7 +165,7 @@ const ResultsReport: React.FC<Props> = ({
               </p>
               <p className="text-xs text-gray-600">{t.deletionsSubtext}</p>
             </div>
-            
+           
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
               <h3 className="font-semibold text-gray-700 mb-1 text-xs">{t.flowLevel}</h3>
               <p className={`text-2xl font-bold ${metrics.frustrationScore <= 3 ? 'text-green-600' : metrics.frustrationScore <= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
