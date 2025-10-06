@@ -1,177 +1,126 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase, getAllSurveyResponses, deleteSurveyResponses, deleteTestData } from '../lib/supabase';
+import { getAllSurveyResponses, deleteSurveyResponses } from '../lib/supabase';
 import { 
   TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
   Download, RefreshCw, Filter, ChevronRight, Award, Globe,
   Package, ShoppingCart, Brain, Clock, CheckCircle, XCircle,
-  BarChart3, PieChart, Activity, Briefcase, Mail, Star
+  BarChart3, PieChart, Activity, Briefcase, Mail, Star, LogOut
 } from 'lucide-react';
 
 interface Props {
   onLogout: () => void;
 }
 
-type DashboardView = 'executive' | 'product' | 'sales' | 'marketing' | 'operations' | 'research';
+type DashboardView = 'executive' | 'sales' | 'operations' | 'research';
+
+interface SurveyResponse {
+  id: string;
+  created_at: string;
+  discount_code: string;
+  email?: string;
+  
+  languages: string[];
+  occupation: string;
+  hours_typing: string;
+  age: string;
+  diagnosis: string[];
+  
+  difficulty_rating?: number;
+  errors_rating?: number;
+  language_switching_rating?: number;
+  frustration_rating?: number;
+  
+  test_completed?: boolean;
+  test_skipped?: boolean;
+  overall_score?: number;
+  total_wpm?: number;
+  total_accuracy?: number;
+  total_language_errors?: number;
+  total_punctuation_errors?: number;
+  total_deletions?: number;
+  total_corrections?: number;
+  total_language_switches?: number;
+  frustration_score?: number;
+  
+  awakening_symptoms?: string[];
+  feature_ranking?: string[];
+  
+  screen_times?: Record<string, number>;
+  completion_time?: number;
+  
+  ip_country?: string;
+  device_type?: string;
+}
 
 interface MarketOpportunity {
   language: string;
   score: number;
-  avgPrice: number;
   marketSize: number;
-  readyToPay: number;
-  topFeature: string;
+  avgScore: number;
   mainOccupation: string;
-}
-
-interface SmartInsight {
-  type: 'success' | 'warning' | 'info' | 'critical';
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  actionLabel?: string;
-  actionData?: any;
-}
-
-interface FeatureDemand {
-  feature: string;
-  displayName: string;
-  avgRating: number;
-  topChoicePercent: number;
-  correlatedFeatures: string[];
-  impactScore: number;
-  implementationDifficulty: number;
 }
 
 interface CustomerSegment {
   id: string;
   name: string;
   size: number;
-  avgPrice: number;
+  avgScore: number;
   characteristics: string[];
-  topFeatures: string[];
   emails: string[];
   score: number;
 }
 
 const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [currentView, setCurrentView] = useState<DashboardView>('executive');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [selectedTimeRange, setSelectedTimeRange] = useState('all');
-  const [selectedMarket, setSelectedMarket] = useState('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Feature display names mapping
-  const featureNames: Record<string, string> = {
-    mechanical: 'Mechanical Keyboard',
-    rgbFull: 'Full RGB Lighting',
-    physicalSwitch: 'Physical Language Switch',
-    wireless: 'Wireless Connectivity',
-    dynamicLight: 'Dynamic Language Lighting',
-    modularKeys: 'Replaceable Keys',
-    wristRest: 'Ergonomic Wrist Rest',
-    shortcuts: 'Professional Shortcuts',
-    volumeKnob: 'Rotary Encoder Knob'
-  };
-
-  // Load and process data
   useEffect(() => {
     loadData();
-    if (autoRefresh) {
-      const interval = setInterval(loadData, 600000); // 10 minutes
-      return () => clearInterval(interval);
-    }
-  }, [selectedTimeRange, selectedMarket, autoRefresh]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data: responses, error } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const processed = processAllData(responses || []);
-      setData(processed);
+      const response = await getAllSurveyResponses();
+      
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to load data');
+      }
+      
+      if (response.data) {
+        const completedSurveys = response.data.filter(r => r.discount_code);
+        setData(completedSurveys);
+      }
       setLastUpdate(new Date());
-    } catch (err) {
+    } catch (err: any) {
+      setError(err.message || 'שגיאה בטעינת נתונים');
       console.error('Error loading data:', err);
     }
     setLoading(false);
   };
 
-  // Process all data for insights
-  const processAllData = (responses: any[]) => {
-    // Market Opportunities
-    const marketOpportunities = calculateMarketOpportunities(responses);
-    
-    // Smart Insights
-    const insights = generateSmartInsights(responses);
-    
-    // Feature Analysis
-    const featureAnalysis = analyzeFeatures(responses);
-    
-    // Customer Segments
-    const segments = identifyCustomerSegments(responses);
-    
-    // Sales Metrics
-    const salesMetrics = calculateSalesMetrics(responses);
-    
-    // Marketing Data
-    const marketingData = analyzeMarketingData(responses);
-
-    return {
-      raw: responses,
-      total: responses.length,
-      marketOpportunities,
-      insights,
-      featureAnalysis,
-      segments,
-      salesMetrics,
-      marketingData,
-      completionRate: responses.filter(r => r.discount_code).length / responses.length * 100,
-      avgScore: responses.reduce((acc, r) => acc + (r.overall_score || 0), 0) / responses.length,
-      avgWPM: responses.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / responses.length,
-      avgAccuracy: responses.reduce((acc, r) => acc + (r.total_accuracy || 0), 0) / responses.length,
-    };
-  };
-
   // Calculate Market Opportunities
-  const calculateMarketOpportunities = (responses: any[]): MarketOpportunity[] => {
+  const marketOpportunities = useMemo((): MarketOpportunity[] => {
     const markets: Record<string, any> = {};
     
-    responses.forEach(r => {
+    data.forEach(r => {
       r.languages?.forEach((lang: string) => {
         if (!markets[lang]) {
           markets[lang] = {
             language: lang,
             count: 0,
             totalScore: 0,
-            totalPrice: 0,
-            priceRanges: {},
-            features: {},
-            occupations: {},
-            readyToPay150Plus: 0
+            occupations: {}
           };
         }
         
         markets[lang].count++;
         markets[lang].totalScore += r.overall_score || 0;
         
-        // Price analysis
-        const priceValue = getPriceValue(r.price_range);
-        markets[lang].totalPrice += priceValue;
-        if (priceValue >= 150) markets[lang].readyToPay150Plus++;
-        
-        // Top features
-        r.top_features?.forEach((feature: string) => {
-          markets[lang].features[feature] = (markets[lang].features[feature] || 0) + 1;
-        });
-        
-        // Occupations
         if (r.occupation) {
           markets[lang].occupations[r.occupation] = (markets[lang].occupations[r.occupation] || 0) + 1;
         }
@@ -179,461 +128,118 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     });
 
     return Object.values(markets).map(m => {
-      const topFeature = Object.entries(m.features)
-        .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0] || '';
-      
+      const avgScore = m.totalScore / m.count;
       const mainOccupation = Object.entries(m.occupations)
         .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0] || '';
-
-      const avgScore = m.totalScore / m.count;
-      const avgPrice = m.totalPrice / m.count;
-      const readyToPayPercent = (m.readyToPay150Plus / m.count) * 100;
       
-      // Calculate opportunity score (0-100)
-      const opportunityScore = calculateOpportunityScore(
-        m.count,
-        avgScore,
-        avgPrice,
-        readyToPayPercent
-      );
+      const opportunityScore = Math.round((m.count / data.length * 100) * 0.5 + avgScore * 0.5);
 
       return {
         language: m.language,
-        score: Math.round(opportunityScore),
-        avgPrice: Math.round(avgPrice),
+        score: opportunityScore,
+        avgScore: Math.round(avgScore),
         marketSize: m.count,
-        readyToPay: Math.round(readyToPayPercent),
-        topFeature: featureNames[topFeature] || topFeature,
         mainOccupation
       };
     }).sort((a, b) => b.score - a.score);
-  };
+  }, [data]);
 
-  // Generate Smart Insights
-  const generateSmartInsights = (responses: any[]): SmartInsight[] => {
-    const insights: SmartInsight[] = [];
-
-    // Insight 1: Best market opportunity
-    const hebrewUsers = responses.filter(r => r.languages?.includes('Hebrew-English'));
-    const hebrewHighValue = hebrewUsers.filter(r => getPriceValue(r.price_range) >= 150);
-    if (hebrewUsers.length > 0) {
-      const percentage = (hebrewHighValue.length / hebrewUsers.length * 100).toFixed(0);
-      insights.push({
-        type: 'success',
-        icon: <TrendingUp className="w-5 h-5" />,
-        title: 'Hebrew-English Market Opportunity',
-        description: `${percentage}% of Hebrew-English users willing to pay $150+. This is your primary market.`,
-        actionLabel: 'View Hebrew Market Analysis'
-      });
-    }
-
-    // Insight 2: ADHD opportunity
-    const adhdUsers = responses.filter(r => r.diagnosis === 'adhd');
-    if (adhdUsers.length >= 5) {
-      const avgPrice = adhdUsers.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / adhdUsers.length;
-      const physicalSwitch = adhdUsers.filter(r => r.top_features?.includes('physicalSwitch')).length;
-      const percentage = (physicalSwitch / adhdUsers.length * 100).toFixed(0);
-      
-      insights.push({
-        type: 'info',
-        icon: <Brain className="w-5 h-5" />,
-        title: 'ADHD User Segment',
-        description: `${percentage}% of ADHD users prioritize physical switch. Avg willingness: $${Math.round(avgPrice)}`,
-        actionLabel: 'Target ADHD Segment'
-      });
-    }
-
-    // Insight 3: Feature correlation
-    const physicalSwitchUsers = responses.filter(r => r.top_features?.includes('physicalSwitch'));
-    const alsoDynamicLight = physicalSwitchUsers.filter(r => 
-      r.feature_ratings?.dynamicLight >= 4
-    ).length;
-    if (physicalSwitchUsers.length > 10) {
-      const correlation = (alsoDynamicLight / physicalSwitchUsers.length * 100).toFixed(0);
-      insights.push({
-        type: 'info',
-        icon: <Package className="w-5 h-5" />,
-        title: 'Feature Bundle Opportunity',
-        description: `${correlation}% who want physical switch also want dynamic lighting. Consider bundling.`,
-        actionLabel: 'View Feature Correlations'
-      });
-    }
-
-    // Insight 4: Pricing sweet spot
-    const priceRanges: Record<string, number> = {};
-    responses.forEach(r => {
-      if (r.price_range) {
-        priceRanges[r.price_range] = (priceRanges[r.price_range] || 0) + 1;
-      }
-    });
-    const sweetSpot = Object.entries(priceRanges)
-      .sort(([,a], [,b]) => b - a)[0];
-    if (sweetSpot) {
-      insights.push({
-        type: 'success',
-        icon: <DollarSign className="w-5 h-5" />,
-        title: 'Pricing Sweet Spot Found',
-        description: `${((sweetSpot[1] / responses.length) * 100).toFixed(0)}% prefer ${sweetSpot[0]} range`,
-        actionLabel: 'Optimize Pricing'
-      });
-    }
-
-    // Insight 5: Conversion issue
-    if (data?.completionRate < 70) {
-      insights.push({
-        type: 'warning',
-        icon: <AlertCircle className="w-5 h-5" />,
-        title: 'Survey Completion Issue',
-        description: `Only ${data?.completionRate?.toFixed(0)}% complete the survey. Consider shortening it.`,
-        actionLabel: 'Analyze Drop-offs'
-      });
-    }
-
-    return insights;
-  };
-
-  // Analyze Features
-  const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
-    const features: Record<string, FeatureDemand> = {};
-    
-    Object.keys(featureNames).forEach(feature => {
-      features[feature] = {
-        feature,
-        displayName: featureNames[feature],
-        avgRating: 0,
-        topChoicePercent: 0,
-        correlatedFeatures: [],
-        impactScore: 0,
-        implementationDifficulty: getImplementationDifficulty(feature)
-      };
-    });
-
-    // Calculate metrics
-    responses.forEach(r => {
-      // Ratings
-      if (r.feature_ratings) {
-        Object.entries(r.feature_ratings).forEach(([feature, rating]) => {
-          if (features[feature] && typeof rating === 'number') {
-            features[feature].avgRating += rating;
-          }
-        });
-      }
-      
-      // Top choices
-      r.top_features?.forEach((feature: string) => {
-        if (features[feature]) {
-          features[feature].topChoicePercent++;
-        }
-      });
-    });
-
-    // Calculate averages and percentages
-    Object.values(features).forEach(f => {
-      f.avgRating = f.avgRating / responses.length;
-      f.topChoicePercent = (f.topChoicePercent / responses.length) * 100;
-      
-      // Calculate impact score (combination of rating and top choice)
-      f.impactScore = (f.avgRating * 0.4 + (f.topChoicePercent / 20) * 0.6) * 20;
-      
-      // Find correlations
-      f.correlatedFeatures = findFeatureCorrelations(responses, f.feature);
-    });
-
-    return Object.values(features).sort((a, b) => b.impactScore - a.impactScore);
-  };
-
-  // Identify Customer Segments
-  const identifyCustomerSegments = (responses: any[]): CustomerSegment[] => {
+  // Calculate Customer Segments
+  const customerSegments = useMemo((): CustomerSegment[] => {
     const segments: CustomerSegment[] = [];
 
-    // Segment 1: Professional Power Users
-    const powerUsers = responses.filter(r => 
-      r.hours_typing === '5-8' || r.hours_typing === '8+' &&
-      r.occupation === 'tech' || r.occupation === 'sales'
-    );
-    
-    if (powerUsers.length > 0) {
-      segments.push({
-        id: 'power-users',
-        name: 'Professional Power Users',
-        size: powerUsers.length,
-        avgPrice: powerUsers.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / powerUsers.length,
-        characteristics: ['5-8+ hours typing', 'Tech/Sales roles', 'High frustration with errors'],
-        topFeatures: getTopFeaturesForSegment(powerUsers),
-        emails: powerUsers.filter(r => r.email).map(r => r.email),
-        score: calculateSegmentScore(powerUsers)
-      });
-    }
-
-    // Segment 2: Frustrated Translators
-    const translators = responses.filter(r => 
-      r.occupation === 'translation' || r.occupation === 'education'
-    );
-    
-    if (translators.length > 0) {
-      segments.push({
-        id: 'translators',
-        name: 'Frustrated Translators',
-        size: translators.length,
-        avgPrice: translators.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / translators.length,
-        characteristics: ['Multi-language needs', 'High accuracy requirements', 'Professional use'],
-        topFeatures: getTopFeaturesForSegment(translators),
-        emails: translators.filter(r => r.email).map(r => r.email),
-        score: calculateSegmentScore(translators)
-      });
-    }
-
-    // Segment 3: ADHD Users
-    const adhdUsers = responses.filter(r => r.diagnosis === 'adhd');
-    
+    // Segment 1: ADHD Users
+    const adhdUsers = data.filter(r => r.diagnosis?.includes('adhd'));
     if (adhdUsers.length > 0) {
+      const scores = adhdUsers.filter(r => r.overall_score).map(r => r.overall_score!);
       segments.push({
         id: 'adhd',
         name: 'ADHD & Accessibility Focused',
         size: adhdUsers.length,
-        avgPrice: adhdUsers.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / adhdUsers.length,
+        avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
         characteristics: ['ADHD diagnosis', 'Need visual cues', 'Frustration reduction priority'],
-        topFeatures: getTopFeaturesForSegment(adhdUsers),
-        emails: adhdUsers.filter(r => r.email).map(r => r.email),
-        score: calculateSegmentScore(adhdUsers)
+        emails: adhdUsers.filter(r => r.email).map(r => r.email!),
+        score: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
       });
     }
 
-    // Segment 4: Price Conscious Students
-    const students = responses.filter(r => 
-      r.occupation === 'student' && getPriceValue(r.price_range) <= 120
+    // Segment 2: Power Users (5+ hours typing)
+    const powerUsers = data.filter(r => 
+      r.hours_typing === '5-8' || r.hours_typing === '8+'
     );
-    
-    if (students.length > 0) {
+    if (powerUsers.length > 0) {
+      const scores = powerUsers.filter(r => r.overall_score).map(r => r.overall_score!);
       segments.push({
-        id: 'students',
-        name: 'Price-Conscious Students',
-        size: students.length,
-        avgPrice: students.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / students.length,
-        characteristics: ['Student budget', 'Basic features priority', 'Entry-level pricing'],
-        topFeatures: getTopFeaturesForSegment(students),
-        emails: students.filter(r => r.email).map(r => r.email),
-        score: calculateSegmentScore(students)
+        id: 'power-users',
+        name: 'Professional Power Users',
+        size: powerUsers.length,
+        avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+        characteristics: ['5-8+ hours typing', 'High productivity needs'],
+        emails: powerUsers.filter(r => r.email).map(r => r.email!),
+        score: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+      });
+    }
+
+    // Segment 3: Translators
+    const translators = data.filter(r => 
+      r.occupation === 'translation' || r.occupation === 'education'
+    );
+    if (translators.length > 0) {
+      const scores = translators.filter(r => r.overall_score).map(r => r.overall_score!);
+      segments.push({
+        id: 'translators',
+        name: 'Translators & Educators',
+        size: translators.length,
+        avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+        characteristics: ['Multi-language needs', 'High accuracy requirements'],
+        emails: translators.filter(r => r.email).map(r => r.email!),
+        score: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
       });
     }
 
     return segments.sort((a, b) => b.score - a.score);
-  };
+  }, [data]);
 
-  // Calculate Sales Metrics
-  const calculateSalesMetrics = (responses: any[]) => {
-    const metrics = {
-      totalAddressableMarket: 0,
-      qualifiedLeads: 0,
-      hotLeads: 0,
-      conversionPotential: 0,
-      avgDealSize: 0,
-      projectedRevenue: 0
-    };
-
-    const qualifiedLeads = responses.filter(r => 
-      r.overall_score >= 60 && r.email
-    );
+  // Stats
+  const stats = useMemo(() => {
+    const withEmail = data.filter(r => r.email).length;
+    const withADHD = data.filter(r => r.diagnosis?.includes('adhd')).length;
+    const completedTest = data.filter(r => r.test_completed).length;
+    const avgScore = data.reduce((acc, r) => acc + (r.overall_score || 0), 0) / (data.length || 1);
+    const avgWPM = data.filter(r => r.test_completed).reduce((acc, r) => acc + (r.total_wpm || 0), 0) / (completedTest || 1);
     
-    const hotLeads = responses.filter(r => 
-      r.overall_score >= 80 && 
-      r.email && 
-      getPriceValue(r.price_range) >= 120
-    );
-
-    metrics.qualifiedLeads = qualifiedLeads.length;
-    metrics.hotLeads = hotLeads.length;
-    metrics.avgDealSize = responses.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / responses.length;
-    metrics.conversionPotential = (hotLeads.length / responses.length) * 100;
-    metrics.projectedRevenue = hotLeads.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) * 0.3; // 30% conversion estimate
-
-    return metrics;
-  };
-
-  // Analyze Marketing Data
-  const analyzeMarketingData = (responses: any[]) => {
-    const purchasePriorities: Record<string, number[]> = {
-      savingTime: [0, 0, 0, 0, 0],
-      reducingErrors: [0, 0, 0, 0, 0],
-      lessFrustration: [0, 0, 0, 0, 0],
-      lookProfessional: [0, 0, 0, 0, 0],
-      typingSpeed: [0, 0, 0, 0, 0]
-    };
-
-    const channelPreference: Record<string, number> = {
-      'Manufacturer website': 0,
-      'Online marketplaces (Amazon/eBay)': 0,
-      'Physical store': 0,
-      'Large electronics store': 0,
-      'Other': 0
-    };
-
-    responses.forEach(r => {
-      // Purchase priorities
-      if (r.purchase_priorities) {
-        Object.entries(r.purchase_priorities).forEach(([key, value]) => {
-          if (purchasePriorities[key] && typeof value === 'number' && value > 0 && value <= 5) {
-            purchasePriorities[key][value - 1]++;
-          }
-        });
-      }
-
-      // Channel preferences
-      r.where_to_buy?.forEach((channel: string) => {
-        if (channelPreference[channel] !== undefined) {
-          channelPreference[channel]++;
-        }
-      });
-    });
-
     return {
-      purchasePriorities,
-      channelPreference,
-      topMessage: getTopMarketingMessage(purchasePriorities),
-      preferredChannel: Object.entries(channelPreference)
-        .sort(([,a], [,b]) => b - a)[0]?.[0]
+      total: data.length,
+      withEmail,
+      withEmailPercent: data.length > 0 ? Math.round((withEmail / data.length) * 100) : 0,
+      withADHD,
+      withADHDPercent: data.length > 0 ? Math.round((withADHD / data.length) * 100) : 0,
+      completedTest,
+      completedTestPercent: data.length > 0 ? Math.round((completedTest / data.length) * 100) : 0,
+      avgScore: Math.round(avgScore),
+      avgWPM: Math.round(avgWPM)
     };
-  };
-
-  // Helper Functions
-  const getPriceValue = (priceRange: string): number => {
-    const priceMap: Record<string, number> = {
-      'Up to $80': 70,
-      '$80-120': 100,
-      '$120-150': 135,
-      '$150-200': 175,
-      'Over $200': 225
-    };
-    return priceMap[priceRange] || 100;
-  };
-
-  const calculateOpportunityScore = (
-    marketSize: number,
-    avgScore: number,
-    avgPrice: number,
-    readyToPayPercent: number
-  ): number => {
-    const sizeScore = Math.min(marketSize / 10, 10) * 10; // Max 100 for 100+ users
-    const qualityScore = avgScore; // Already 0-100
-    const priceScore = (avgPrice / 200) * 100; // $200 = 100 points
-    const readinessScore = readyToPayPercent;
-    
-    return (sizeScore * 0.25 + qualityScore * 0.25 + priceScore * 0.25 + readinessScore * 0.25);
-  };
-
-  const getImplementationDifficulty = (feature: string): number => {
-    const difficulty: Record<string, number> = {
-      mechanical: 3,
-      rgbFull: 5,
-      physicalSwitch: 2,
-      wireless: 7,
-      dynamicLight: 4,
-      modularKeys: 6,
-      wristRest: 2,
-      shortcuts: 3,
-      volumeKnob: 3
-    };
-    return difficulty[feature] || 5;
-  };
-
-  const findFeatureCorrelations = (responses: any[], targetFeature: string): string[] => {
-    const correlations: Record<string, number> = {};
-    
-    const targetUsers = responses.filter(r => r.top_features?.includes(targetFeature));
-    
-    if (targetUsers.length === 0) return [];
-    
-    Object.keys(featureNames).forEach(feature => {
-      if (feature !== targetFeature) {
-        const correlation = targetUsers.filter(r => 
-          r.feature_ratings?.[feature] >= 4
-        ).length / targetUsers.length;
-        
-        if (correlation > 0.5) {
-          correlations[feature] = correlation;
-        }
-      }
-    });
-    
-    return Object.entries(correlations)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([feature]) => featureNames[feature]);
-  };
-
-  const getTopFeaturesForSegment = (segment: any[]): string[] => {
-    const features: Record<string, number> = {};
-    
-    segment.forEach(r => {
-      r.top_features?.forEach((f: string) => {
-        features[f] = (features[f] || 0) + 1;
-      });
-    });
-    
-    return Object.entries(features)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([f]) => featureNames[f] || f);
-  };
-
-  const calculateSegmentScore = (segment: any[]): number => {
-    const avgScore = segment.reduce((acc, r) => acc + (r.overall_score || 0), 0) / segment.length;
-    const avgPrice = segment.reduce((acc, r) => acc + getPriceValue(r.price_range), 0) / segment.length;
-    const withEmail = segment.filter(r => r.email).length / segment.length;
-    
-    return Math.round(avgScore * 0.3 + (avgPrice / 2) * 0.4 + withEmail * 100 * 0.3);
-  };
-
-  const getTopMarketingMessage = (priorities: Record<string, number[]>): string => {
-    const topPriorities: Record<string, number> = {};
-    
-    Object.entries(priorities).forEach(([key, ratings]) => {
-      // Calculate weighted score (higher rating = more weight)
-      topPriorities[key] = ratings.reduce((acc, count, index) => 
-        acc + count * (index + 1), 0
-      );
-    });
-    
-    const top = Object.entries(topPriorities)
-      .sort(([,a], [,b]) => a - b)[0]?.[0];
-    
-    const messages: Record<string, string> = {
-      savingTime: 'Save 10+ minutes every day',
-      reducingErrors: 'Reduce typing errors by 50%',
-      lessFrustration: 'End the frustration of wrong language typing',
-      lookProfessional: 'Look professional with zero mistakes',
-      typingSpeed: 'Type faster in multiple languages'
-    };
-    
-    return messages[top] || 'Type better, work smarter';
-  };
+  }, [data]);
 
   // Export Functions
   const exportToCSV = (dataset: string = 'all') => {
-    if (!data?.raw) return;
-    
-    let exportData = data.raw;
+    let exportData = data;
     let filename = 'typeswitch-export';
     
-    // Filter based on dataset type
     if (dataset === 'hot-leads') {
-      exportData = data.raw.filter((r: any) => 
-        r.overall_score >= 80 && r.email && getPriceValue(r.price_range) >= 150
-      );
+      exportData = data.filter(r => r.overall_score && r.overall_score >= 80 && r.email);
       filename = 'typeswitch-hot-leads';
     } else if (dataset === 'emails') {
-      exportData = data.raw.filter((r: any) => r.email);
+      exportData = data.filter(r => r.email);
       filename = 'typeswitch-email-list';
-    } else if (dataset === 'segment') {
-      // Export specific segment passed as parameter
     }
     
     const headers = [
       'Date', 'Email', 'Languages', 'Occupation', 'Age', 'Score', 
-      'WPM', 'Accuracy', 'Price Range', 'Top Features', 'Diagnosis'
+      'WPM', 'Accuracy', 'Diagnosis', 'Test Completed'
     ];
     
-    const rows = exportData.map((r: any) => [
+    const rows = exportData.map(r => [
       new Date(r.created_at).toLocaleDateString(),
       r.email || '',
       (r.languages || []).join(';'),
@@ -642,9 +248,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       r.overall_score || 0,
       r.total_wpm || 0,
       r.total_accuracy || 0,
-      r.price_range || '',
-      (r.top_features || []).join(';'),
-      r.diagnosis || ''
+      (r.diagnosis || []).join(';'),
+      r.test_completed ? 'Yes' : 'No'
     ]);
     
     const csvContent = [
@@ -663,10 +268,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
 
   const exportSegmentEmails = (segment: CustomerSegment) => {
     const csvContent = [
-      'Email,Name,Score,Price Range,Top Features',
+      'Email,Segment,Score',
       ...segment.emails.map(email => {
-        const user = data.raw.find((r: any) => r.email === email);
-        return `"${email}","${segment.name}","${user?.overall_score || ''}","${user?.price_range || ''}","${(user?.top_features || []).join(';')}"`;
+        const user = data.find(r => r.email === email);
+        return `"${email}","${segment.name}","${user?.overall_score || ''}"`;
       })
     ].join('\n');
     
@@ -679,27 +284,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     URL.revokeObjectURL(url);
   };
 
-  const generateReport = (type: string) => {
-    // Generate different types of reports (investor, product, marketing)
-    console.log('Generating report:', type);
-    // Implementation would generate PDF or formatted document
-  };
-
-  // Delete test data
-  const handleDeleteTestData = async () => {
-    if (!window.confirm('Delete all test data (score < 30 or completion time < 60 seconds)?')) return;
-    
-    const result = await deleteTestData();
-    if (result.success) {
-      alert('Test data deleted successfully');
-      loadData();
-    } else {
-      alert('Error deleting test data');
-    }
-  };
-
-  // Render loading state
-  if (loading && !data) {
+  if (loading && data.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -710,7 +295,24 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     );
   }
 
-  // Main Render
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md text-center">
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={loadData}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -726,13 +328,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`p-2 rounded-lg ${autoRefresh ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
-                title={autoRefresh ? 'Auto-refresh ON (10 min)' : 'Auto-refresh OFF'}
-              >
-                <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
-              </button>
-              <button
                 onClick={loadData}
                 className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200"
                 title="Refresh now"
@@ -741,8 +336,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               </button>
               <button
                 onClick={onLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
+                <LogOut className="w-4 h-4" />
                 Logout
               </button>
             </div>
@@ -755,12 +351,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-1 overflow-x-auto">
             {[
-              { id: 'executive', label: 'נ“ Executive', icon: <BarChart3 className="w-4 h-4" /> },
-              { id: 'product', label: 'נ€ Product', icon: <Package className="w-4 h-4" /> },
-              { id: 'sales', label: 'נ’° Sales', icon: <DollarSign className="w-4 h-4" /> },
-              { id: 'marketing', label: 'נ“ˆ Marketing', icon: <Target className="w-4 h-4" /> },
-              { id: 'operations', label: 'ג™ן¸ Operations', icon: <Activity className="w-4 h-4" /> },
-              { id: 'research', label: 'נ”¬ Research', icon: <Brain className="w-4 h-4" /> }
+              { id: 'executive', label: 'Executive', icon: <BarChart3 className="w-4 h-4" /> },
+              { id: 'sales', label: 'Sales', icon: <DollarSign className="w-4 h-4" /> },
+              { id: 'operations', label: 'Operations', icon: <Activity className="w-4 h-4" /> },
+              { id: 'research', label: 'Research', icon: <Brain className="w-4 h-4" /> }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -784,6 +378,63 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         {/* Executive Dashboard */}
         {currentView === 'executive' && (
           <div className="space-y-6">
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Responses</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  </div>
+                  <Users className="w-8 h-8 text-blue-500 opacity-50" />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">With Email</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.withEmail} ({stats.withEmailPercent}%)
+                    </p>
+                  </div>
+                  <Mail className="w-8 h-8 text-green-500 opacity-50" />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">ADHD Users</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.withADHD} ({stats.withADHDPercent}%)
+                    </p>
+                  </div>
+                  <Brain className="w-8 h-8 text-purple-500 opacity-50" />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Avg Score</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.avgScore}</p>
+                  </div>
+                  <Award className="w-8 h-8 text-orange-500 opacity-50" />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Avg WPM</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.avgWPM}</p>
+                  </div>
+                  <Activity className="w-8 h-8 text-teal-500 opacity-50" />
+                </div>
+              </div>
+            </div>
+
             {/* Market Opportunity Score */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
@@ -801,7 +452,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               </div>
               
               <div className="space-y-4">
-                {data?.marketOpportunities?.slice(0, 5).map((market: MarketOpportunity) => (
+                {marketOpportunities.slice(0, 5).map((market) => (
                   <div key={market.language} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -814,11 +465,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                           )}
                         </div>
                         <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
-                          <span>נ‘¥ {market.marketSize} users</span>
-                          <span>נ’° ${market.avgPrice} avg</span>
-                          <span>נ¯ {market.readyToPay}% ready for $150+</span>
-                          <span>ג­ {market.topFeature}</span>
-                          <span>נ’¼ {market.mainOccupation}</span>
+                          <span>👥 {market.marketSize} users</span>
+                          <span>📊 {market.avgScore} avg score</span>
+                          <span>💼 {market.mainOccupation}</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center">
@@ -843,251 +492,33 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               </div>
             </div>
 
-            {/* Smart Insights */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                <Zap className="w-6 h-6 mr-2 text-yellow-500" />
-                AI-Powered Insights
+            {/* Top Insights */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-sm p-6 text-white">
+              <h2 className="text-xl font-bold mb-4 flex items-center">
+                <Zap className="w-6 h-6 mr-2" />
+                Top 5 Insights
               </h2>
-              
-              <div className="grid gap-4">
-                {data?.insights?.map((insight: SmartInsight, index: number) => (
-                  <div 
-                    key={index}
-                    className={`border-l-4 rounded-lg p-4 ${
-                      insight.type === 'success' ? 'border-green-500 bg-green-50' :
-                      insight.type === 'warning' ? 'border-yellow-500 bg-yellow-50' :
-                      insight.type === 'critical' ? 'border-red-500 bg-red-50' :
-                      'border-blue-500 bg-blue-50'
-                    }`}
-                  >
-                    <div className="flex items-start">
-                      <div className={`mr-3 mt-0.5 ${
-                        insight.type === 'success' ? 'text-green-600' :
-                        insight.type === 'warning' ? 'text-yellow-600' :
-                        insight.type === 'critical' ? 'text-red-600' :
-                        'text-blue-600'
-                      }`}>
-                        {insight.icon}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{insight.title}</h3>
-                        <p className="mt-1 text-gray-700">{insight.description}</p>
-                        {insight.actionLabel && (
-                          <button className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800">
-                            {insight.actionLabel} ג†’
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Responses</p>
-                    <p className="text-2xl font-bold text-gray-900">{data?.total || 0}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-blue-500 opacity-50" />
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">1.</span>
+                  <span>{marketOpportunities[0]?.language} is your primary market with {marketOpportunities[0]?.marketSize} users</span>
                 </div>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Completion Rate</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {data?.completionRate?.toFixed(0) || 0}%
-                    </p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 text-green-500 opacity-50" />
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">2.</span>
+                  <span>{stats.withADHDPercent}% of users have ADHD - a key accessibility segment</span>
                 </div>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Avg Score</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {Math.round(data?.avgScore || 0)}
-                    </p>
-                  </div>
-                  <Award className="w-8 h-8 text-purple-500 opacity-50" />
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">3.</span>
+                  <span>{stats.completedTestPercent}% completed the typing test</span>
                 </div>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Avg WPM</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {Math.round(data?.avgWPM || 0)}
-                    </p>
-                  </div>
-                  <Activity className="w-8 h-8 text-orange-500 opacity-50" />
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">4.</span>
+                  <span>Average typing speed: {stats.avgWPM} WPM</span>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Product Dashboard */}
-        {currentView === 'product' && (
-          <div className="space-y-6">
-            {/* Feature Priority Matrix */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Feature Priority Matrix</h2>
-              
-              <div className="relative h-96 border rounded-lg bg-gray-50">
-                <div className="absolute inset-0 flex">
-                  {/* Quadrants */}
-                  <div className="w-1/2 h-1/2 border-r border-b p-4">
-                    <div className="text-sm font-medium text-gray-500 mb-2">
-                      נ€ Build NOW (High Impact, Low Effort)
-                    </div>
-                    <div className="space-y-2">
-                      {data?.featureAnalysis?.filter((f: FeatureDemand) => 
-                        f.impactScore > 50 && f.implementationDifficulty <= 3
-                      ).map((f: FeatureDemand) => (
-                        <div key={f.feature} className="bg-green-100 text-green-800 px-3 py-1 rounded-lg text-sm inline-block mr-2">
-                          {f.displayName}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="w-1/2 h-1/2 border-b p-4">
-                    <div className="text-sm font-medium text-gray-500 mb-2">
-                      נ“… Next Quarter (High Impact, High Effort)
-                    </div>
-                    <div className="space-y-2">
-                      {data?.featureAnalysis?.filter((f: FeatureDemand) => 
-                        f.impactScore > 50 && f.implementationDifficulty > 3
-                      ).map((f: FeatureDemand) => (
-                        <div key={f.feature} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm inline-block mr-2">
-                          {f.displayName}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="w-1/2 h-1/2 border-r p-4">
-                    <div className="text-sm font-medium text-gray-500 mb-2">
-                      נ₪· Nice to Have (Low Impact, Low Effort)
-                    </div>
-                    <div className="space-y-2">
-                      {data?.featureAnalysis?.filter((f: FeatureDemand) => 
-                        f.impactScore <= 50 && f.implementationDifficulty <= 3
-                      ).map((f: FeatureDemand) => (
-                        <div key={f.feature} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm inline-block mr-2">
-                          {f.displayName}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="w-1/2 h-1/2 p-4">
-                    <div className="text-sm font-medium text-gray-500 mb-2">
-                      ג Reconsider (Low Impact, High Effort)
-                    </div>
-                    <div className="space-y-2">
-                      {data?.featureAnalysis?.filter((f: FeatureDemand) => 
-                        f.impactScore <= 50 && f.implementationDifficulty > 3
-                      ).map((f: FeatureDemand) => (
-                        <div key={f.feature} className="bg-red-100 text-red-800 px-3 py-1 rounded-lg text-sm inline-block mr-2">
-                          {f.displayName}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">5.</span>
+                  <span>{stats.withEmailPercent}% provided email for follow-up</span>
                 </div>
-                
-                {/* Axis labels */}
-                <div className="absolute left-1/2 bottom-2 transform -translate-x-1/2 text-sm text-gray-500">
-                  Implementation Difficulty ג†’
-                </div>
-                <div className="absolute left-2 top-1/2 transform -translate-y-1/2 -rotate-90 text-sm text-gray-500">
-                  Impact Score ג†’
-                </div>
-              </div>
-            </div>
-
-            {/* Feature Details Table */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Feature Analysis</h2>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Feature</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Avg Rating</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Top Choice %</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Impact Score</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Difficulty</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Correlations</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {data?.featureAnalysis?.map((feature: FeatureDemand) => (
-                      <tr key={feature.feature} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{feature.displayName}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${
-                            feature.avgRating >= 4 ? 'text-green-600' : 
-                            feature.avgRating >= 3 ? 'text-yellow-600' : 
-                            'text-red-600'
-                          }`}>
-                            {feature.avgRating.toFixed(1)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${
-                            feature.topChoicePercent >= 50 ? 'text-green-600' : 
-                            feature.topChoicePercent >= 30 ? 'text-yellow-600' : 
-                            'text-gray-600'
-                          }`}>
-                            {feature.topChoicePercent.toFixed(0)}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center">
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="h-2 rounded-full bg-blue-600"
-                                style={{ width: `${feature.impactScore}%` }}
-                              />
-                            </div>
-                            <span className="ml-2 text-sm">{feature.impactScore.toFixed(0)}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            feature.implementationDifficulty <= 3 ? 'bg-green-100 text-green-800' :
-                            feature.implementationDifficulty <= 6 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {feature.implementationDifficulty}/10
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {feature.correlatedFeatures.map((corr, idx) => (
-                              <span key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                {corr}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -1096,35 +527,37 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         {/* Sales Dashboard */}
         {currentView === 'sales' && (
           <div className="space-y-6">
-            {/* Sales Metrics Overview */}
+            {/* Sales Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-600">Qualified Leads</h3>
                   <Mail className="w-5 h-5 text-blue-500" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{data?.salesMetrics?.qualifiedLeads || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {data.filter(r => r.overall_score && r.overall_score >= 60 && r.email).length}
+                </p>
                 <p className="text-sm text-gray-500 mt-1">With email & score 60+</p>
               </div>
               
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">Hot Leads נ”¥</h3>
+                  <h3 className="text-sm font-medium text-gray-600">Hot Leads 🔥</h3>
                   <Star className="w-5 h-5 text-orange-500" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{data?.salesMetrics?.hotLeads || 0}</p>
-                <p className="text-sm text-gray-500 mt-1">Score 80+ & $120+ willingness</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {data.filter(r => r.overall_score && r.overall_score >= 80 && r.email).length}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">Score 80+ with email</p>
               </div>
               
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">Projected Revenue</h3>
-                  <DollarSign className="w-5 h-5 text-green-500" />
+                  <h3 className="text-sm font-medium text-gray-600">Email Collection</h3>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">
-                  ${Math.round(data?.salesMetrics?.projectedRevenue || 0).toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">30% conversion estimate</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.withEmailPercent}%</p>
+                <p className="text-sm text-gray-500 mt-1">{stats.withEmail} total emails</p>
               </div>
             </div>
 
@@ -1133,7 +566,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               <h2 className="text-xl font-bold text-gray-900 mb-4">Customer Segments</h2>
               
               <div className="grid gap-4">
-                {data?.segments?.map((segment: CustomerSegment) => (
+                {customerSegments.map((segment) => (
                   <div key={segment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -1151,13 +584,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                         
                         <div className="mt-2 space-y-1">
                           <p className="text-sm text-gray-600">
-                            נ’° Average willingness: <span className="font-semibold">${Math.round(segment.avgPrice)}</span>
+                            📊 Average score: <span className="font-semibold">{segment.avgScore}/100</span>
                           </p>
                           <p className="text-sm text-gray-600">
-                            ג‰ן¸ Emails collected: <span className="font-semibold">{segment.emails.length}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            נ¯ Segment score: <span className="font-semibold">{segment.score}/100</span>
+                            ✉️ Emails collected: <span className="font-semibold">{segment.emails.length}</span>
                           </p>
                         </div>
                         
@@ -1171,20 +601,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                             ))}
                           </div>
                         </div>
-                        
-                        <div className="mt-3">
-                          <p className="text-xs text-gray-500 uppercase font-medium mb-1">Top Features</p>
-                          <div className="flex flex-wrap gap-1">
-                            {segment.topFeatures.map((feature, idx) => (
-                              <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                       
-                      <div className="ml-4 space-y-2">
+                      <div className="ml-4">
                         <button
                           onClick={() => exportSegmentEmails(segment)}
                           className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
@@ -1192,197 +611,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                           <Download className="w-4 h-4 mr-1" />
                           Export Emails
                         </button>
-                        <button
-                          className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 w-full"
-                        >
-                          <Mail className="w-4 h-4 mr-1" />
-                          Campaign
-                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Price Analysis */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Pricing Strategy by Market</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {data?.marketOpportunities?.slice(0, 4).map((market: MarketOpportunity) => {
-                  const responses = data.raw.filter((r: any) => r.languages?.includes(market.language));
-                  const priceDistribution: Record<string, number> = {};
-                  
-                  responses.forEach((r: any) => {
-                    if (r.price_range) {
-                      priceDistribution[r.price_range] = (priceDistribution[r.price_range] || 0) + 1;
-                    }
-                  });
-                  
-                  return (
-                    <div key={market.language} className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-gray-900 mb-3">{market.language}</h3>
-                      
-                      <div className="space-y-2">
-                        {Object.entries(priceDistribution)
-                          .sort(([a], [b]) => {
-                            const order = ['Up to $80', '$80-120', '$120-150', '$150-200', 'Over $200'];
-                            return order.indexOf(a) - order.indexOf(b);
-                          })
-                          .map(([range, count]) => {
-                            const percentage = (count / responses.length) * 100;
-                            return (
-                              <div key={range} className="flex items-center space-x-2">
-                                <span className="text-sm w-24">{range}</span>
-                                <div className="flex-1 bg-gray-200 rounded-full h-6">
-                                  <div
-                                    className="h-6 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-end pr-2"
-                                    style={{ width: `${percentage}%` }}
-                                  >
-                                    {percentage > 10 && (
-                                      <span className="text-xs text-white font-medium">
-                                        {percentage.toFixed(0)}%
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                {percentage < 10 && (
-                                  <span className="text-xs text-gray-500 w-8">
-                                    {percentage.toFixed(0)}%
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                      </div>
-                      
-                      <div className="mt-3 pt-3 border-t">
-                        <p className="text-sm text-gray-600">
-                          Sweet spot: <span className="font-semibold text-green-600">${market.avgPrice}</span>
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Marketing Dashboard */}
-        {currentView === 'marketing' && (
-          <div className="space-y-6">
-            {/* Top Marketing Message */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-sm p-6">
-              <h2 className="text-2xl font-bold mb-2">Your #1 Marketing Message</h2>
-              <p className="text-3xl font-bold">{data?.marketingData?.topMessage}</p>
-              <p className="mt-2 text-blue-100">Based on customer priority analysis</p>
-            </div>
-
-            {/* Purchase Priorities */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">What Motivates Purchase?</h2>
-              
-              <div className="space-y-4">
-                {Object.entries(data?.marketingData?.purchasePriorities || {}).map(([key, values]: [string, any]) => {
-                  const total = values.reduce((a: number, b: number) => a + b, 0);
-                  const weighted = values.reduce((acc: number, count: number, index: number) => 
-                    acc + count * (5 - index), 0
-                  );
-                  
-                  const priorityLabels: Record<string, string> = {
-                    savingTime: 'Saving Time (10+ min/day)',
-                    reducingErrors: 'Reducing Errors (50% less)',
-                    lessFrustration: 'Less Frustration',
-                    lookProfessional: 'Looking Professional',
-                    typingSpeed: 'Typing Speed'
-                  };
-                  
-                  return (
-                    <div key={key} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900">
-                          {priorityLabels[key] || key}
-                        </h3>
-                        <span className="text-sm text-gray-500">
-                          Priority score: {weighted}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {values.map((count: number, index: number) => {
-                          const percentage = total > 0 ? (count / total) * 100 : 0;
-                          return (
-                            <div key={index} className="flex-1">
-                              <div className="text-xs text-center text-gray-500 mb-1">
-                                #{index + 1}
-                              </div>
-                              <div className="bg-gray-200 rounded h-20 flex flex-col justify-end">
-                                <div
-                                  className={`rounded transition-all ${
-                                    index === 0 ? 'bg-green-500' :
-                                    index === 1 ? 'bg-green-400' :
-                                    index === 2 ? 'bg-yellow-400' :
-                                    index === 3 ? 'bg-orange-400' :
-                                    'bg-red-400'
-                                  }`}
-                                  style={{ height: `${percentage}%` }}
-                                />
-                              </div>
-                              <div className="text-xs text-center text-gray-600 mt-1">
-                                {count}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Channel Preference */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Where They Want to Buy</h2>
-              
-              <div className="space-y-3">
-                {Object.entries(data?.marketingData?.channelPreference || {})
-                  .sort(([,a], [,b]) => (b as number) - (a as number))
-                  .map(([channel, count]: [string, any]) => {
-                    const percentage = data?.total > 0 ? (count / data.total) * 100 : 0;
-                    
-                    return (
-                      <div key={channel} className="flex items-center space-x-3">
-                        <div className="w-40 text-sm font-medium text-gray-700">{channel}</div>
-                        <div className="flex-1 bg-gray-200 rounded-full h-8">
-                          <div
-                            className="h-8 rounded-full bg-blue-600 flex items-center justify-end pr-3"
-                            style={{ width: `${percentage}%` }}
-                          >
-                            {percentage > 5 && (
-                              <span className="text-sm text-white font-medium">
-                                {percentage.toFixed(0)}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {percentage <= 5 && (
-                          <span className="text-sm text-gray-500 w-10">
-                            {percentage.toFixed(0)}%
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-              
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-900">
-                  <strong>Key Insight:</strong> {data?.marketingData?.preferredChannel} is the preferred channel.
-                  Focus your initial sales efforts here for maximum conversion.
-                </p>
               </div>
             </div>
           </div>
@@ -1391,56 +623,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         {/* Operations Dashboard */}
         {currentView === 'operations' && (
           <div className="space-y-6">
-            {/* Data Quality */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Data Quality Monitor</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Completion Rate</span>
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {data?.completionRate?.toFixed(0) || 0}%
-                  </p>
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Avg Time</span>
-                    <Clock className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">4:23</p>
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Test Data</span>
-                    <XCircle className="w-4 h-4 text-red-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {data?.raw?.filter((r: any) => r.overall_score < 30 || r.completion_time < 60).length || 0}
-                  </p>
-                  <button
-                    onClick={handleDeleteTestData}
-                    className="mt-2 text-xs text-red-600 hover:text-red-800"
-                  >
-                    Clean Up ג†’
-                  </button>
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Total Records</span>
-                    <BarChart3 className="w-4 h-4 text-purple-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">{data?.total || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Responses Table */}
+            {/* Data Table */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Recent Responses</h2>
@@ -1459,21 +642,24 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Occupation</th>
                       <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Score</th>
                       <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">WPM</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                       <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {data?.raw?.slice(0, 10).map((r: any) => (
+                    {data.slice(0, 50).map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2 text-sm">
                           {new Date(r.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-2 text-sm">
                           {r.languages?.[0] || '-'}
+                        </td>
+                        <td className="px-4 py-2 text-sm">
+                          {r.occupation || '-'}
                         </td>
                         <td className="px-4 py-2 text-sm text-center font-bold">
                           {r.overall_score || 0}
@@ -1482,13 +668,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                           {r.total_wpm || 0}
                         </td>
                         <td className="px-4 py-2 text-sm">
-                          {r.price_range || '-'}
-                        </td>
-                        <td className="px-4 py-2 text-sm">
                           {r.email || '-'}
                         </td>
                         <td className="px-4 py-2 text-center">
-                          {r.discount_code ? (
+                          {r.test_completed ? (
                             <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                               Complete
                             </span>
@@ -1510,201 +693,116 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         {/* Research Dashboard */}
         {currentView === 'research' && (
           <div className="space-y-6">
-            {/* Deep Analytics */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Research & Deep Analytics</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Research & Analytics</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Language Error Analysis */}
+                {/* Language Distribution */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Language Error Patterns</h3>
+                  <h3 className="font-semibold text-gray-900 mb-3">Language Distribution</h3>
                   <div className="space-y-2">
-                    {data?.raw && (() => {
-                      const avgErrors = data.raw.reduce((acc: number, r: any) => 
-                        acc + (r.total_language_errors || 0), 0
-                      ) / data.raw.length;
-                      
-                      const highErrorUsers = data.raw.filter((r: any) => 
-                        r.total_language_errors > avgErrors * 1.5
-                      );
-                      
-                      return (
-                        <>
-                          <p className="text-sm text-gray-600">
-                            Average language errors: <span className="font-semibold">{avgErrors.toFixed(1)}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            High error users: <span className="font-semibold">{highErrorUsers.length}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Correlation with age 45+: <span className="font-semibold">
-                              {(highErrorUsers.filter((r: any) => 
-                                r.age === '46-55' || r.age === '55+'
-                              ).length / highErrorUsers.length * 100).toFixed(0)}%
-                            </span>
-                          </p>
-                        </>
-                      );
-                    })()}
+                    {marketOpportunities.map(market => (
+                      <div key={market.language}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>{market.language}</span>
+                          <span>{market.marketSize} ({Math.round(market.marketSize / data.length * 100)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${(market.marketSize / data.length) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Frustration Analysis */}
+                {/* Occupation Distribution */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Frustration Factors</h3>
-                  <div className="space-y-2">
-                    {data?.raw && (() => {
-                      const highFrustration = data.raw.filter((r: any) => 
-                        r.frustration_score >= 7
-                      );
-                      
-                      const avgSwitches = highFrustration.reduce((acc: number, r: any) => 
-                        acc + (r.total_language_switches || 0), 0
-                      ) / (highFrustration.length || 1);
-                      
-                      return (
-                        <>
-                          <p className="text-sm text-gray-600">
-                            High frustration users: <span className="font-semibold">
-                              {highFrustration.length} ({(highFrustration.length / data.raw.length * 100).toFixed(0)}%)
-                            </span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Avg language switches: <span className="font-semibold">{avgSwitches.toFixed(1)}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Main occupation: <span className="font-semibold">
-                              {(() => {
-                                const occupations: Record<string, number> = {};
-                                highFrustration.forEach((r: any) => {
-                                  if (r.occupation) {
-                                    occupations[r.occupation] = (occupations[r.occupation] || 0) + 1;
-                                  }
-                                });
-                                return Object.entries(occupations)
-                                  .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
-                              })()}
-                            </span>
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Conversion Funnel */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Conversion Funnel Analysis</h3>
+                  <h3 className="font-semibold text-gray-900 mb-3">Top Occupations</h3>
                   <div className="space-y-2">
                     {(() => {
-                      const started = data?.total || 0;
-                      const completedTyping = data?.raw?.filter((r: any) => r.total_wpm > 0).length || 0;
-                      const completedFeatures = data?.raw?.filter((r: any) => r.top_features?.length > 0).length || 0;
-                      const completedSurvey = data?.raw?.filter((r: any) => r.discount_code).length || 0;
-                      const providedEmail = data?.raw?.filter((r: any) => r.email).length || 0;
-                      
-                      return (
-                        <>
-                          <div className="flex justify-between text-sm">
-                            <span>Started</span>
-                            <span className="font-semibold">{started}</span>
+                      const occupations: Record<string, number> = {};
+                      data.forEach(r => {
+                        if (r.occupation) {
+                          occupations[r.occupation] = (occupations[r.occupation] || 0) + 1;
+                        }
+                      });
+                      return Object.entries(occupations)
+                        .sort(([,a], [,b]) => b - a)
+                        .slice(0, 5)
+                        .map(([occ, count]) => (
+                          <div key={occ}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="capitalize">{occ}</span>
+                              <span>{count} ({Math.round(count / data.length * 100)}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-green-600 h-2 rounded-full"
+                                style={{ width: `${(count / data.length) * 100}%` }}
+                              />
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Completed Typing</span>
-                            <span className="font-semibold">{completedTyping} ({(completedTyping/started*100).toFixed(0)}%)</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Selected Features</span>
-                            <span className="font-semibold">{completedFeatures} ({(completedFeatures/started*100).toFixed(0)}%)</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Completed Survey</span>
-                            <span className="font-semibold">{completedSurvey} ({(completedSurvey/started*100).toFixed(0)}%)</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Provided Email</span>
-                            <span className="font-semibold">{providedEmail} ({(providedEmail/started*100).toFixed(0)}%)</span>
-                          </div>
-                        </>
-                      );
+                        ));
                     })()}
                   </div>
                 </div>
 
-                {/* Statistical Summary */}
+                {/* Test Completion Stats */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Statistical Summary</h3>
-                  <div className="space-y-2">
-                    {data?.raw && (() => {
-                      const scores = data.raw.map((r: any) => r.overall_score || 0).sort((a: number, b: number) => a - b);
-                      const median = scores[Math.floor(scores.length / 2)];
-                      const q1 = scores[Math.floor(scores.length * 0.25)];
-                      const q3 = scores[Math.floor(scores.length * 0.75)];
-                      
-                      return (
-                        <>
-                          <p className="text-sm text-gray-600">
-                            Median Score: <span className="font-semibold">{median}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Q1 - Q3: <span className="font-semibold">{q1} - {q3}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Standard Deviation: <span className="font-semibold">
-                              {(() => {
-                                const mean = data.avgScore;
-                                const variance = scores.reduce((acc: number, score: number) => 
-                                  acc + Math.pow(score - mean, 2), 0
-                                ) / scores.length;
-                                return Math.sqrt(variance).toFixed(1);
-                              })()}
-                            </span>
-                          </p>
-                        </>
-                      );
-                    })()}
+                  <h3 className="font-semibold text-gray-900 mb-3">Test Completion</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Completed Test</span>
+                      <span className="font-semibold">{stats.completedTest} ({stats.completedTestPercent}%)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Skipped Test</span>
+                      <span className="font-semibold">
+                        {data.filter(r => r.test_skipped).length} 
+                        ({Math.round((data.filter(r => r.test_skipped).length / data.length) * 100)}%)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Average WPM</span>
+                      <span className="font-semibold">{stats.avgWPM}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Export Options */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Research Export Options</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => generateReport('investor')}
-                  className="p-4 border rounded-lg hover:shadow-md transition-shadow text-left"
-                >
-                  <Briefcase className="w-6 h-6 text-blue-600 mb-2" />
-                  <h3 className="font-semibold text-gray-900">Investor Report</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Market analysis, opportunity size, and projections
-                  </p>
-                </button>
-                
-                <button
-                  onClick={() => generateReport('product')}
-                  className="p-4 border rounded-lg hover:shadow-md transition-shadow text-left"
-                >
-                  <Package className="w-6 h-6 text-green-600 mb-2" />
-                  <h3 className="font-semibold text-gray-900">Product Roadmap</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Feature priorities and development recommendations
-                  </p>
-                </button>
-                
-                <button
-                  onClick={() => generateReport('marketing')}
-                  className="p-4 border rounded-lg hover:shadow-md transition-shadow text-left"
-                >
-                  <Target className="w-6 h-6 text-purple-600 mb-2" />
-                  <h3 className="font-semibold text-gray-900">Marketing Strategy</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Messaging, channels, and campaign recommendations
-                  </p>
-                </button>
+                {/* Score Distribution */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Score Distribution</h3>
+                  <div className="space-y-2">
+                    {['80-100', '60-79', '40-59', '0-39'].map(range => {
+                      const [min, max] = range.split('-').map(Number);
+                      const count = data.filter(r => 
+                        r.overall_score && r.overall_score >= min && r.overall_score <= max
+                      ).length;
+                      const percent = Math.round((count / data.length) * 100);
+                      return (
+                        <div key={range}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>{range}</span>
+                            <span>{count} ({percent}%)</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                min >= 80 ? 'bg-green-600' :
+                                min >= 60 ? 'bg-yellow-600' :
+                                'bg-red-600'
+                              }`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
