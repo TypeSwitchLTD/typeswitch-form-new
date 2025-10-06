@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-
+ 
 interface Props {
   onNext: (data: any) => void;
   t: any; // Translation object
