@@ -29,11 +29,11 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
     // Combine layout and other layout into a single field before sending
     const finalDemographics = {
       ...demographics,
-      keyboardLayout: demographics.keyboardLayout === 'other' 
-        ? demographics.keyboardLayoutOther 
+      keyboardLayout: demographics.keyboardLayout === 'other'
+        ? demographics.keyboardLayoutOther
         : demographics.keyboardLayout,
     };
-    
+
     // The onNext function sends the whole demographics object
     onNext({ demographics: finalDemographics });
   };
@@ -44,14 +44,14 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
       languages: [lang]
     }));
   };
-  
+
   const toggleKeyboardPhysicalType = (keyboard: string) => {
     if (demographics.useMultipleKeyboards) {
       setDemographics(prev => ({
         ...prev,
         keyboardPhysicalType: prev.keyboardPhysicalType.includes(keyboard)
           ? prev.keyboardPhysicalType.filter(k => k !== keyboard)
-          : prev.keyboardPhysicalType.length < 3 
+          : prev.keyboardPhysicalType.length < 3
             ? [...prev.keyboardPhysicalType, keyboard]
             : prev.keyboardPhysicalType
       }));
@@ -70,7 +70,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
       keyboardPhysicalType: checked ? prev.keyboardPhysicalType : prev.keyboardPhysicalType.slice(0, 1)
     }));
   };
-  
+
   const handleDiagnosisChange = (value: string) => {
     setDemographics(prev => {
       const currentDiagnoses = prev.diagnosis || [];
@@ -78,22 +78,22 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
       if (value === 'none') {
         return { ...prev, diagnosis: currentDiagnoses.includes('none') ? [] : ['none'] };
       }
-      
+
       let newDiagnoses = currentDiagnoses.filter(d => d !== 'none'); // Remove 'none' if other options are selected
-      
+
       if (newDiagnoses.includes(value)) {
         newDiagnoses = newDiagnoses.filter(d => d !== value);
       } else {
         newDiagnoses.push(value);
       }
-      
+
       return { ...prev, diagnosis: newDiagnoses };
     });
   };
 
-  const isFormValid = demographics.languages.length > 0 && 
-                     demographics.hoursTyping && 
-                     demographics.occupation && 
+  const isFormValid = demographics.languages.length > 0 &&
+                     demographics.hoursTyping &&
+                     demographics.occupation &&
                      demographics.keyboardPhysicalType.length > 0 &&
                      demographics.age &&
                      (demographics.keyboardLayout && (demographics.keyboardLayout !== 'other' || demographics.keyboardLayoutOther));
@@ -106,7 +106,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">{t.title}</h2>
-        
+
         <div className="space-y-4">
           {/* Languages */}
           <div>
@@ -169,7 +169,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               {t.qKeyboardType} <span className="text-red-500">{t.required}</span>
             </label>
-            
+
             <div className="mb-3">
               <label className="flex items-center cursor-pointer">
                 <input
@@ -198,7 +198,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
                 </button>
               ))}
             </div>
-            
+
             {demographics.useMultipleKeyboards && (
               <p className="text-xs text-gray-500 mt-1">
                 {t.multiKeyboardDesc(demographics.keyboardPhysicalType.length)}
@@ -210,8 +210,8 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               {t.qKeyboardLayout} <span className="text-red-500">{t.required}</span>
-              <span className="text-xs text-gray-500 ml-1">{t.qKeyboardLayoutDesc}</span>
             </label>
+            <p className="text-xs text-gray-500 mb-2">{t.qKeyboardLayoutDesc}</p>
             <select
               value={demographics.keyboardLayout}
               onChange={(e) => setDemographics({...demographics, keyboardLayout: e.target.value, keyboardLayoutOther: ''})}
@@ -221,7 +221,7 @@ const DemographicsScreen: React.FC<Props> = ({ onNext, t }) => {
               <option value="QWERTY">QWERTY</option>
               <option value="other">Other</option>
             </select>
-            
+
             {demographics.keyboardLayout === 'other' && (
               <input
                 type="text"
