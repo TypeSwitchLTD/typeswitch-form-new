@@ -1,4 +1,4 @@
-   import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
