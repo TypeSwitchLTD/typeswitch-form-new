@@ -1,5 +1,4 @@
-// src/App.tsx
-
+// Force rebuild v2.0
 import React, { useState, useEffect, useRef } from 'react';
 import { SurveyData, TypingMetrics } from './types';
 import WelcomeScreen from './components/WelcomeScreen';
