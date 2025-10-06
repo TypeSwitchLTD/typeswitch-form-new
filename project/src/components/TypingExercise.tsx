@@ -39,7 +39,7 @@ const exercises = {
 תאריך אחרון לביצוע 15/07/2025.
 מנהל רכש - Purchasing Manager`
     },
-    { 
+    {
       title: "Exercise 2 - Student Article",
       text: `מחקרי הדמיה הראו כי אזורים במוח מופעלים באופן שונה בקרב בעלי ADHD, לרוב באקטיבציה נמוכה יותר.
 נמצא כי אזורים שונים הינם בעלי נפח קטן יותר בהשוואה לקבוצות ביקורת (Bush, 2011).
@@ -77,14 +77,14 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
   const [lastLanguage, setLastLanguage] = useState<'hebrew' | 'arabic' | 'english' | 'russian' | null>(null);
   const [allMistakes, setAllMistakes] = useState<Set<number>>(new Set());
   const [correctedMistakes, setCorrectedMistakes] = useState<Set<number>>(new Set());
-  
+
   const [realTimeLanguageErrors, setRealTimeLanguageErrors] = useState(0);
   const [realTimePunctuationErrors, setRealTimePunctuationErrors] = useState(0);
-  
+
   const [cheatingDetected, setCheatingDetected] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pasteHandler = useRef<((e: ClipboardEvent) => void) | null>(null);
   const copyHandler = useRef<((e: ClipboardEvent) => void) | null>(null);
@@ -92,8 +92,8 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
 
   const exerciseSet = exercises[selectedLanguage] || exercises['Hebrew-English'];
   const exerciseIndex = chosenExercise === 'student_article' ? 1 : 0;
-  const exercise = exerciseSet[exerciseIndex] || exerciseSet[0]; 
-  
+  const exercise = exerciseSet[exerciseIndex] || exerciseSet[0];
+
   const isRTL = selectedLanguage === 'Hebrew-English' || selectedLanguage === 'Arabic-English';
 
   const normalizeText = (text: string) => {
@@ -107,7 +107,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    
+
     if (pasteHandler.current) {
       document.removeEventListener('paste', pasteHandler.current);
       pasteHandler.current = null;
@@ -141,7 +141,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
 
   const handleCheatingDetected = (message: string) => {
     if (!warningShown) {
-      setWarningShown(true); 
+      setWarningShown(true);
       alert(message);
       resetExerciseState();
     }
@@ -187,7 +187,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
     const last30 = currentInput.slice(-30);
     const hasVowels = /[aeiouאהוי]/i.test(last30);
     const hasConsonants = /[bcdfghjklmnpqrstvwxyzבגדזחטכלמנספצקרשת]/i.test(last30);
-    
+
     if (last30.length >= 20 && (!hasVowels || !hasConsonants)) {
       handleCheatingDetected('⚠️ Please type real words from the text!');
       return true;
@@ -308,10 +308,10 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
     wpm = Math.max(0, Math.min(150, wpm));
     let accuracy = normalizedInput.length > 0 ? Math.round(((normalizedInput.length - finalErrors.length) / normalizedInput.length) * 100) : 100;
     accuracy = Math.max(0, accuracy);
-    
+
     const validDelays = keystrokes.map(k => k.delay).filter(d => d < 5000 && d > 0);
     const averageDelay = validDelays.length > 0 ? Math.round(validDelays.reduce((a, b) => a + b, 0) / validDelays.length) : 0;
-    
+
     const frustrationFactors = [
       Math.min(2, finalErrors.length * 0.15),
       Math.min(2, allMistakes.size * 0.1),
@@ -362,7 +362,7 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
       metrics: { ...metrics, completionRate: Math.round(completionRate) }
     });
   };
-  
+
   const renderTextComparison = () => {
     const expectedChars = normalizedExerciseText.split('');
     return expectedChars.map((char, index) => {
@@ -381,52 +381,89 @@ const TypingExercise: React.FC<Props> = ({ chosenExercise, onComplete, onBack, s
 
   const progress = Math.min(100, (normalizeText(userInput).length / normalizedExerciseText.length) * 100);
 
+  const buttonOrder = isRTL
+    ? [
+        <button key="complete" onClick={handleComplete} disabled={progress < 60} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50">
+          {t.completeButton}
+        </button>,
+        <button key="back" onClick={onBack} className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition">
+          {t.backButton || 'Back'}
+        </button>,
+      ]
+    : [
+        <button key="back" onClick={onBack} className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition">
+          {t.backButton || 'Back'}
+        </button>,
+        <button key="complete" onClick={handleComplete} disabled={progress < 60} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50">
+          {t.completeButton}
+        </button>,
+      ];
+
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-2">
-      <div className="bg-white rounded-xl shadow-xl p-4 max-w-6xl w-full" style={{ maxHeight: '95vh' }}>
-        <h2 className="text-lg font-bold text-gray-800 mb-2">{t.title}: {exercise.title}</h2>
-        <div className="mb-2">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-xl p-4 max-w-6xl w-full flex flex-col" style={{ height: 'calc(100vh - 2rem)', maxHeight: '900px' }}>
+        
+        {/* Header */}
+        <div className="flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-800 mb-2">{t.title}</h2>
+          <div className="mb-2">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-xs text-gray-600 mt-1">{t.progress} {Math.round(progress)}%</p>
           </div>
-          <p className="text-xs text-gray-600 mt-1">{t.progress} {Math.round(progress)}%</p>
         </div>
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg font-mono text-lg leading-relaxed whitespace-pre-wrap" style={{ maxHeight: '35vh', overflowY: 'auto', direction: isRTL ? 'rtl' : 'ltr' }}>
-          {renderTextComparison()}
+
+        {/* Content Area (flexible and scrollable) */}
+        <div className="flex-grow flex flex-col min-h-0 space-y-3">
+          {/* Top text display area */}
+          <div className="p-3 bg-gray-50 rounded-lg font-mono text-base leading-relaxed whitespace-pre-wrap overflow-y-auto" style={{ direction: isRTL ? 'rtl' : 'ltr', flexBasis: '40%' }}>
+            {renderTextComparison()}
+          </div>
+          
+          {/* Bottom typing area */}
+          <div className="flex flex-col" style={{ flexBasis: '60%' }}>
+            <label className="block text-sm font-semibold text-gray-700 mb-1 flex-shrink-0">{t.instruction}</label>
+            <textarea
+              ref={textareaRef}
+              value={userInput}
+              onChange={handleInputChange}
+              onPaste={(e) => e.preventDefault()}
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              className="w-full p-3 border-2 border-gray-300 rounded-lg font-mono text-lg resize-none focus:border-blue-500 focus:outline-none bg-white flex-grow"
+              placeholder={t.subtitle}
+              dir={isRTL ? 'rtl' : 'ltr'}
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+          </div>
         </div>
-        <div className="mb-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-1">{t.instruction}</label>
-          <textarea
-            ref={textareaRef}
-            value={userInput}
-            onChange={handleInputChange}
-            onPaste={(e) => e.preventDefault()}
-            onCopy={(e) => e.preventDefault()}
-            onCut={(e) => e.preventDefault()}
-            className="w-full p-3 border-2 border-gray-300 rounded-lg font-mono text-lg resize-none focus:border-blue-500 focus:outline-none bg-white"
-            rows={7}
-            placeholder={t.subtitle}
-            dir={isRTL ? 'rtl' : 'ltr'}
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-          />
-        </div>
-        <div className="flex justify-between items-center gap-3">
-          <button
-            onClick={onBack}
-            className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleComplete}
-            disabled={progress < 60}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50"
-          >
-            {t.completeButton}
-          </button>
+
+        {/* Footer */}
+        <div className={`flex items-center mt-4 flex-shrink-0 ${isRTL ? 'justify-end flex-row-reverse' : 'justify-between'}`}>
+          {isRTL ? (
+            <>
+              <button onClick={handleComplete} disabled={progress < 60} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50">
+                {t.completeButton}
+              </button>
+              <button onClick={onBack} className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition ml-3">
+                {t.backButton || 'Back'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={onBack} className="bg-gray-500 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:bg-gray-600 transition">
+                {t.backButton || 'Back'}
+              </button>
+              <button onClick={handleComplete} disabled={progress < 60} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 transition">
+                {t.completeButton}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
