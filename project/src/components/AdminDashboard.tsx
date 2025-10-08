@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllSurveyResponses } from '../lib/supabase';
 import { 
   TrendingUp, Users, Target, Zap, AlertCircle, 
-  Download, RefreshCw, Award, 
+  Download, RefreshCw, 
   Package, Brain, Clock, CheckCircle, XCircle,
   Activity, Mail, Star, DollarSign, Calculator
 } from 'lucide-react';
@@ -27,9 +27,14 @@ interface SegmentPain {
 interface FeatureDemand {
   feature: string;
   displayName: string;
+  avgRating: number;
   topChoicePercent: number;
+  correlatedFeatures: string[];
+  impactScore: number;
+  implementationDifficulty: number;
 }
 
+// 🆕 NEW INTERFACE
 interface TypingMetrics {
   avgWPM: number;
   avgAccuracy: number;
@@ -45,6 +50,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  
+  // 🆕 NEW STATE for ROI Calculator
   const [monthlySalary, setMonthlySalary] = useState<string>('');
   const [monetaryROI, setMonetaryROI] = useState<any>(null);
 
@@ -75,6 +82,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     setLoading(true);
     try {
       const result = await getAllSurveyResponses();
+
       if (result.error) throw result.error;
 
       const responses = result.data || [];
@@ -87,9 +95,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     setLoading(false);
   };
 
-  // Calculate Monetary ROI
+  // 🆕 NEW FUNCTION - Calculate Monetary ROI
   const calculateMonetaryROI = (salary: number, yearlyHours: number) => {
-    const hourlyRate = salary / 22 / 8; // Monthly salary / 22 days / 8 hours
+    const hourlyRate = salary / 22 / 8;
     const yearlyLoss = yearlyHours * hourlyRate;
     const monthlyLoss = yearlyLoss / 12;
     const dailyLoss = monthlyLoss / 22;
@@ -102,7 +110,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // Handle ROI Calculation
+  // 🆕 NEW FUNCTION - Handle ROI Calculation
   const handleCalculateROI = () => {
     const salary = parseFloat(monthlySalary);
     if (isNaN(salary) || salary <= 0 || !data?.roi?.yearlyHours) {
@@ -129,8 +137,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const avgWastedSeconds = totalWasted / completedTests.length;
     const testMinutes = 5;
     const wastedPerMinute = avgWastedSeconds / testMinutes;
-    const dailyMinutes = (wastedPerMinute * 90) / 60; // 90 minutes of typing per day
-    const monthlyHours = (dailyMinutes * 22) / 60; // 22 working days
+    const dailyMinutes = (wastedPerMinute * 90) / 60;
+    const monthlyHours = (dailyMinutes * 22) / 60;
     const yearlyHours = monthlyHours * 12;
 
     return {
@@ -140,7 +148,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // Analyze Typing Metrics
+  // 🆕 NEW FUNCTION - Analyze Typing Metrics
   const analyzeTypingMetrics = (responses: any[]): TypingMetrics => {
     const completedTests = responses.filter(r => r.test_completed);
     if (completedTests.length === 0) {
@@ -234,6 +242,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         const segmentUsers = responses.filter(seg.filter);
         if (segmentUsers.length === 0) return null;
 
+        // 🔧 FIX: Only calculate from users who completed the test
         const completedUsers = segmentUsers.filter(r => r.test_completed);
         const avgScore = completedUsers.length > 0
           ? completedUsers.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedUsers.length
@@ -287,38 +296,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // Analyze Features
-  const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
-    const features: Record<string, FeatureDemand> = {};
-    
-    Object.keys(featureNames).forEach(feature => {
-      features[feature] = {
-        feature,
-        displayName: featureNames[feature],
-        topChoicePercent: 0
-      };
-    });
-
-    const totalRankings = responses.filter(r => r.feature_ranking).length;
-    
-    if (totalRankings > 0) {
-      responses.forEach(r => {
-        if (r.feature_ranking && Array.isArray(r.feature_ranking)) {
-          const topFeature = r.feature_ranking[0];
-          if (features[topFeature]) {
-            features[topFeature].topChoicePercent++;
-          }
-        }
-      });
-
-      Object.values(features).forEach(f => {
-        f.topChoicePercent = (f.topChoicePercent / totalRankings) * 100;
-      });
-    }
-
-    return Object.values(features).sort((a, b) => b.topChoicePercent - a.topChoicePercent);
-  };
-
   // Process all data for insights
   const processAllData = (responses: any[]) => {
     const painPoints = analyzePainPoints(responses);
@@ -326,11 +303,12 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const impact = analyzeImpact(responses);
     const featureAnalysis = analyzeFeatures(responses);
     const roi = calculateAverageROI(responses);
-    const typingMetrics = analyzeTypingMetrics(responses);
+    const typingMetrics = analyzeTypingMetrics(responses); // 🆕 NEW
     
     const completedTest = responses.filter(r => r.test_completed).length;
     const withEmail = responses.filter(r => r.email).length;
 
+    // 🔧 FIX: Calculate avgScore only from completed tests
     const completedTests = responses.filter(r => r.test_completed);
     const avgScore = completedTests.length > 0
       ? completedTests.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedTests.length
@@ -343,14 +321,56 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       completedTestRate: Math.round((completedTest / responses.length) * 100),
       withEmail,
       emailRate: Math.round((withEmail / responses.length) * 100),
-      avgScore: Math.round(avgScore),
+      avgScore: Math.round(avgScore), // 🔧 FIXED
+      avgWPM: completedTests.length > 0 ? Math.round(completedTests.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedTests.length) : 0,
+      avgLanguageErrors: completedTests.length > 0 ? Math.round((completedTests.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedTests.length) * 10) / 10 : 0,
       painPoints,
       segmentPain,
       impact,
       featureAnalysis,
       roi,
-      typingMetrics
+      typingMetrics // 🆕 NEW
     };
+  };
+
+  // Analyze Features
+  const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
+    const features: Record<string, FeatureDemand> = {};
+    
+    Object.keys(featureNames).forEach(feature => {
+      features[feature] = {
+        feature,
+        displayName: featureNames[feature],
+        avgRating: 0,
+        topChoicePercent: 0,
+        correlatedFeatures: [],
+        impactScore: 0,
+        implementationDifficulty: 5
+      };
+    });
+
+    const totalRankings = responses.filter(r => r.feature_ranking).length;
+    
+    if (totalRankings > 0) {
+      responses.forEach(r => {
+        if (r.feature_ranking && Array.isArray(r.feature_ranking)) {
+          r.feature_ranking.forEach((feature: string, index: number) => {
+            if (features[feature]) {
+              features[feature].avgRating += (5 - index);
+              if (index === 0) features[feature].topChoicePercent++;
+            }
+          });
+        }
+      });
+
+      Object.values(features).forEach(f => {
+        f.avgRating = f.avgRating / totalRankings;
+        f.topChoicePercent = (f.topChoicePercent / totalRankings) * 100;
+        f.impactScore = (f.avgRating * 0.4 + (f.topChoicePercent / 20) * 0.6) * 20;
+      });
+    }
+
+    return Object.values(features).sort((a, b) => b.topChoicePercent - a.topChoicePercent);
   };
 
   // Export Functions
