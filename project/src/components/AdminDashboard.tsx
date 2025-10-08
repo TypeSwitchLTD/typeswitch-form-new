@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
   Download, RefreshCw, Filter, ChevronRight, Award, Globe,
   Package, ShoppingCart, Brain, Clock, CheckCircle, XCircle,
-  BarChart3, PieChart, Activity, Briefcase, Mail, Star, ArrowDown
+  BarChart3, PieChart, Activity, Briefcase, Mail, Star, ArrowDown, Calculator
 } from 'lucide-react';
 
 interface Props {
@@ -33,7 +33,7 @@ interface FeatureDemand {
   displayName: string;
   avgRating: number;
   topChoicePercent: number;
-  totalSelections: number; // 🆕 NEW
+  totalSelections: number;
   correlatedFeatures: string[];
   impactScore: number;
   implementationDifficulty: number;
@@ -69,6 +69,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [monthlySalary, setMonthlySalary] = useState<string>('15000'); // 🆕 NEW
 
   const featureNames: Record<string, string> = {
     'mechanical': 'Mechanical Keyboard',
@@ -136,6 +137,28 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       dailyMinutes: Math.round(dailyMinutes * 10) / 10,
       monthlyHours: Math.round(monthlyHours * 10) / 10,
       yearlyHours: Math.round(yearlyHours)
+    };
+  };
+
+  // 🆕 NEW: Calculate Monetary ROI
+  const calculateMonetaryROI = () => {
+    const salary = parseFloat(monthlySalary);
+    if (!salary || salary <= 0 || !data?.roi) return null;
+
+    // Calculate hourly rate with 30% employer costs
+    const salaryWithCosts = salary * 1.3;
+    const hourlyRate = salaryWithCosts / 22 / 8;
+
+    // Calculate losses
+    const dailyLoss = (data.roi.dailyMinutes / 60) * hourlyRate;
+    const monthlyLoss = data.roi.monthlyHours * hourlyRate;
+    const yearlyLoss = data.roi.yearlyHours * hourlyRate;
+
+    return {
+      hourlyRate: Math.round(hourlyRate),
+      dailyLoss: Math.round(dailyLoss),
+      monthlyLoss: Math.round(monthlyLoss),
+      yearlyLoss: Math.round(yearlyLoss)
     };
   };
 
@@ -293,7 +316,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // 🔧 FIXED: Analyze Features - counts ALL selections, not just #1
   const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
     const features: Record<string, FeatureDemand> = {};
     
@@ -316,7 +338,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         displayName: featureNames[feature],
         avgRating: 0,
         topChoicePercent: 0,
-        totalSelections: 0, // 🆕 NEW: Count all selections
+        totalSelections: 0,
         correlatedFeatures: [],
         impactScore: 0,
         implementationDifficulty: 5
@@ -339,7 +361,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             
             if (features[normalizedFeature]) {
               features[normalizedFeature].avgRating += (5 - index);
-              features[normalizedFeature].totalSelections++; // 🔧 Count EVERY selection
+              features[normalizedFeature].totalSelections++;
               if (index === 0) {
                 features[normalizedFeature].topChoicePercent++;
               }
@@ -357,7 +379,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       });
     }
 
-    // 🔧 CHANGED: Sort by totalSelections instead of topChoicePercent
     return Object.values(features).sort((a, b) => b.totalSelections - a.totalSelections);
   };
 
@@ -402,6 +423,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // 🆕 NEW: Calculate monetary ROI result
+  const monetaryROI = calculateMonetaryROI();
 
   if (loading && !data) {
     return (
@@ -483,6 +507,87 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                 </div>
                 <p className="text-indigo-200 text-sm mt-2">
                   {data?.roi?.yearlyHours || 0} hours wasted annually
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 🆕 NEW: ROI Calculator */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <DollarSign className="w-9 h-9 mr-3 text-green-600" />
+              ROI Calculator: Financial Impact
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Calculate the annual financial cost of language-switching errors per employee:
+            </p>
+
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Monthly Salary (₪):
+                  </label>
+                  <div className="flex space-x-3">
+                    <input
+                      type="number"
+                      value={monthlySalary}
+                      onChange={(e) => setMonthlySalary(e.target.value)}
+                      placeholder="e.g., 15000"
+                      className="flex-1 px-4 py-3 border-2 border-green-300 rounded-lg text-lg font-semibold focus:outline-none focus:border-green-500"
+                    />
+                    <button
+                      onClick={loadData}
+                      className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-bold hover:from-green-700 hover:to-emerald-700 transition flex items-center"
+                    >
+                      <Calculator className="w-5 h-5 mr-2" />
+                      Calculate
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Based on {data?.roi?.yearlyHours || 0} hours wasted per year · Includes 30% employer costs
+                  </p>
+                </div>
+
+                {monetaryROI && (
+                  <div className="bg-white rounded-xl p-6 border-2 border-green-300">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Annual Cost Breakdown:</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Hourly Rate (with costs):</span>
+                        <span className="text-lg font-bold text-green-600">₪{monetaryROI.hourlyRate.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Daily Loss:</span>
+                        <span className="text-lg font-bold text-orange-600">₪{monetaryROI.dailyLoss.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Monthly Loss:</span>
+                        <span className="text-lg font-bold text-red-600">₪{monetaryROI.monthlyLoss.toLocaleString()}</span>
+                      </div>
+                      <div className="border-t-2 border-gray-200 pt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-base font-bold text-gray-900">Yearly Loss:</span>
+                          <span className="text-3xl font-bold text-red-600">₪{monetaryROI.yearlyLoss.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!monetaryROI && (
+                <div className="mt-6 text-center">
+                  <p className="text-gray-500 italic">Enter a monthly salary above to see the financial impact</p>
+                </div>
+              )}
+
+              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Calculation Method:</h3>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <strong>Hourly Rate:</strong> (Monthly Salary × 1.3 for employer costs) ÷ 22 working days ÷ 8 hours<br/>
+                  <strong>Time Wasted:</strong> Based on {data?.roi?.dailyMinutes || 0} min/day, {data?.roi?.monthlyHours || 0} hours/month, {data?.roi?.yearlyHours || 0} hours/year<br/>
+                  <strong>Financial Loss:</strong> Hourly Rate × Hours Wasted
                 </p>
               </div>
             </div>
@@ -649,7 +754,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🔧 CHANGED: Feature Validation with totalSelections */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
@@ -668,7 +772,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                         </div>
                         <h3 className="text-lg font-bold text-gray-900">{feature.displayName}</h3>
                       </div>
-                      {/* 🔧 CHANGED: Show totalSelections and topChoicePercent */}
                       <p className="text-sm text-gray-600 ml-13">
                         {feature.totalSelections} users selected · {feature.topChoicePercent.toFixed(0)}% ranked #1
                       </p>
@@ -723,7 +826,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               <p className="text-lg text-blue-50 leading-relaxed">
                 <strong className="text-white">Market Validation Complete:</strong> {data?.total || 0} users proved the problem exists, 
                 with {data?.completedTest || 0} completing real typing challenges showing {data?.avgLanguageErrors || 0} errors per test. 
-                Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors. 
+                Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors{monetaryROI && (
+                  <>, costing approximately <strong className="text-white">₪{monetaryROI.yearlyLoss.toLocaleString()}</strong> per employee</>
+                )}. 
                 {data?.emailRate || 0}% conversion to sales leads demonstrates strong buyer intent. 
                 Top-requested features ({data?.featureAnalysis?.[0]?.displayName || 'N/A'}, {data?.featureAnalysis?.[1]?.displayName || 'N/A'}) 
                 align with our core product, confirming product-market fit in the $5B global keyboard market.
