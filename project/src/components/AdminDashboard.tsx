@@ -189,7 +189,11 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         const segmentUsers = responses.filter(seg.filter);
         if (segmentUsers.length === 0) return null;
 
-        const avgScore = segmentUsers.reduce((acc, r) => acc + (r.overall_score || 0), 0) / segmentUsers.length;
+        // 🔧 FIX: Only calculate from completed tests
+        const completedUsers = segmentUsers.filter(r => r.test_completed);
+        const avgScore = completedUsers.length > 0
+          ? completedUsers.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedUsers.length
+          : 0;
         
         // Find top pain point
         const painCounts: Record<string, number> = {};
@@ -251,6 +255,25 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const completedTest = responses.filter(r => r.test_completed).length;
     const withEmail = responses.filter(r => r.email).length;
 
+    // 🔧 FIX: Calculate avgScore only from completed tests
+    const completedTests = responses.filter(r => r.test_completed);
+    const avgScore = completedTests.length > 0
+      ? completedTests.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedTests.length
+      : 0;
+
+    // 🆕 NEW: Calculate typing metrics
+    const avgWPM = completedTests.length > 0
+      ? completedTests.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedTests.length
+      : 0;
+
+    const avgAccuracy = completedTests.length > 0
+      ? completedTests.reduce((acc, r) => acc + (r.total_accuracy || 0), 0) / completedTests.length
+      : 0;
+
+    const avgLanguageErrors = completedTests.length > 0
+      ? completedTests.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedTests.length
+      : 0;
+
     return {
       raw: responses,
       total: responses.length,
@@ -258,9 +281,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       completedTestRate: Math.round((completedTest / responses.length) * 100),
       withEmail,
       emailRate: Math.round((withEmail / responses.length) * 100),
-      avgScore: responses.reduce((acc, r) => acc + (r.overall_score || 0), 0) / responses.length,
-      avgWPM: responses.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / responses.length,
-      avgLanguageErrors: responses.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedTest || 0,
+      avgScore: Math.round(avgScore), // 🔧 FIXED
+      avgWPM: Math.round(avgWPM), // 🔧 FIXED
+      avgAccuracy: Math.round(avgAccuracy * 10) / 10, // 🆕 NEW
+      avgLanguageErrors: Math.round(avgLanguageErrors * 10) / 10, // 🔧 FIXED
       painPoints,
       segmentPain,
       impact,
@@ -407,7 +431,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="space-y-6">
           
-          {/* EXECUTIVE SUMMARY - שינוי מלל בלבד */}
+          {/* EXECUTIVE SUMMARY */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <TrendingUp className="w-10 h-10 mr-3" />
@@ -426,7 +450,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
                 <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Problem Severity</p>
-                <p className="text-5xl font-bold">{Math.round(data?.avgScore || 0)}</p>
+                <p className="text-5xl font-bold">{data?.avgScore || 0}</p>
                 <p className="text-indigo-200 text-sm mt-2">Pain score (out of 100)</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
@@ -442,7 +466,51 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* PAIN POINTS - שינוי כותרת בלבד */}
+          {/* 🆕 NEW: Typing Performance Metrics */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <Activity className="w-9 h-9 mr-3 text-blue-600" />
+              Typing Performance Data
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Real metrics from {data?.completedTest || 0} users who completed the typing challenge:
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 text-center">
+                <TrendingUp className="w-12 h-12 mx-auto mb-3 text-blue-600" />
+                <p className="text-5xl font-bold text-blue-600 mb-2">{data?.avgWPM || 0}</p>
+                <p className="text-sm font-semibold text-gray-700">Average WPM</p>
+                <p className="text-xs text-gray-500 mt-2">Words per minute</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-600" />
+                <p className="text-5xl font-bold text-green-600 mb-2">{data?.avgAccuracy || 0}%</p>
+                <p className="text-sm font-semibold text-gray-700">Average Accuracy</p>
+                <p className="text-xs text-gray-500 mt-2">Overall typing precision</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-600" />
+                <p className="text-5xl font-bold text-red-600 mb-2">{data?.avgLanguageErrors || 0}</p>
+                <p className="text-sm font-semibold text-gray-700">Language Errors</p>
+                <p className="text-xs text-gray-500 mt-2">Average per 5-minute test</p>
+              </div>
+            </div>
+
+            <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Key Insight</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Users type at <strong className="text-blue-600">{data?.avgWPM || 0} WPM</strong> with{' '}
+                <strong className="text-green-600">{data?.avgAccuracy || 0}% accuracy</strong>, yet make{' '}
+                <strong className="text-red-600">{data?.avgLanguageErrors || 0} language-switching errors</strong> in just 5 minutes.
+                This proves language switching is a <strong>distinct, measurable problem</strong> separate from general typing skills.
+              </p>
+            </div>
+          </div>
+
+          {/* PAIN POINTS */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <AlertCircle className="w-9 h-9 mr-3 text-red-600" />
@@ -476,7 +544,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* WHO SUFFERS MOST - שינוי מלל */}
+          {/* WHO SUFFERS MOST */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Users className="w-9 h-9 mr-3 text-purple-600" />
@@ -518,7 +586,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* IMPACT - שינוי מלל */}
+          {/* IMPACT */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Zap className="w-9 h-9 mr-3 text-yellow-600" />
@@ -565,7 +633,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* FEATURE DEMAND - שינוי מלל */}
+          {/* FEATURE DEMAND */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
@@ -601,7 +669,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* MARKET VALIDATION - שינוי מלל */}
+          {/* MARKET VALIDATION */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <CheckCircle className="w-10 h-10 mr-3" />
@@ -618,14 +686,14 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
                 <Activity className="w-12 h-12 mb-3 text-purple-200" />
-                <p className="text-4xl font-bold mb-2">{data?.avgLanguageErrors?.toFixed(1) || 0}</p>
+                <p className="text-4xl font-bold mb-2">{data?.avgLanguageErrors || 0}</p>
                 <p className="text-purple-100">Errors per 5-Min Test</p>
                 <p className="text-sm text-purple-200 mt-2">Quantifiable problem proof</p>
               </div>
               
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
                 <TrendingUp className="w-12 h-12 mb-3 text-green-200" />
-                <p className="text-4xl font-bold mb-2">{Math.round(data?.avgWPM || 0)}</p>
+                <p className="text-4xl font-bold mb-2">{data?.avgWPM || 0}</p>
                 <p className="text-green-100">Average WPM</p>
                 <p className="text-sm text-green-200 mt-2">Professional users validated</p>
               </div>
@@ -635,7 +703,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               <h3 className="text-2xl font-bold mb-4">Why Invest in TypeSwitch?</h3>
               <p className="text-lg text-blue-50 leading-relaxed">
                 <strong className="text-white">Market Validation Complete:</strong> {data?.total || 0} users proved the problem exists, 
-                with {data?.completedTest || 0} completing real typing challenges showing {Math.round(data?.avgScore || 0)}/100 pain severity. 
+                with {data?.completedTest || 0} completing real typing challenges showing {data?.avgScore || 0}/100 pain severity. 
                 Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors. 
                 {data?.emailRate || 0}% conversion to sales leads demonstrates strong buyer intent. 
                 Top-requested features ({data?.featureAnalysis?.[0]?.displayName || 'N/A'}, {data?.featureAnalysis?.[1]?.displayName || 'N/A'}) 
