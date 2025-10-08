@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
   Download, RefreshCw, Filter, ChevronRight, Award, Globe,
   Package, ShoppingCart, Brain, Clock, CheckCircle, XCircle,
-  BarChart3, PieChart, Activity, Briefcase, Mail, Star
+  BarChart3, PieChart, Activity, Briefcase, Mail, Star, ArrowDown
 } from 'lucide-react';
 
 interface Props {
@@ -56,9 +56,11 @@ interface PainPoint {
 
 interface SegmentPain {
   segment: string;
-  avgScore: number;
   count: number;
-  topPain: string;
+  avgErrors: number;
+  avgWPM: number;
+  topFeature: string;
+  withEmail: number;
 }
 
 const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
@@ -122,8 +124,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const avgWastedSeconds = totalWasted / completedTests.length;
     const testMinutes = 5;
     const wastedPerMinute = avgWastedSeconds / testMinutes;
-    const dailyMinutes = (wastedPerMinute * 90) / 60; // 90 minutes of typing per day
-    const monthlyHours = (dailyMinutes * 22) / 60; // 22 working days
+    const dailyMinutes = (wastedPerMinute * 90) / 60;
+    const monthlyHours = (dailyMinutes * 22) / 60;
     const yearlyHours = monthlyHours * 12;
 
     return {
@@ -174,8 +176,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       .slice(0, 10);
   };
 
-  // Analyze Segment Pain
-  const analyzeSegmentPain = (responses: any[]): SegmentPain[] => {
+  // 🔧 CHANGED: Analyze Segment by Metrics (not pain)
+  const analyzeSegmentMetrics = (responses: any[]): SegmentPain[] => {
     const segments = [
       { id: 'adhd', filter: (r: any) => r.diagnosis?.includes('adhd'), name: 'ADHD Users' },
       { id: 'translation', filter: (r: any) => r.occupation === 'translation', name: 'Translators' },
@@ -189,43 +191,49 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         const segmentUsers = responses.filter(seg.filter);
         if (segmentUsers.length === 0) return null;
 
-        // 🔧 FIX: Only calculate from completed tests
         const completedUsers = segmentUsers.filter(r => r.test_completed);
-        const avgScore = completedUsers.length > 0
-          ? completedUsers.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedUsers.length
+        
+        const avgErrors = completedUsers.length > 0
+          ? completedUsers.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedUsers.length
+          : 0;
+
+        const avgWPM = completedUsers.length > 0
+          ? completedUsers.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedUsers.length
           : 0;
         
-        // Find top pain point
-        const painCounts: Record<string, number> = {};
+        // Find top feature
+        const featureCounts: Record<string, number> = {};
         segmentUsers.forEach(r => {
-          if (r.awakening_symptoms) {
-            r.awakening_symptoms.forEach((s: string) => {
-              painCounts[s] = (painCounts[s] || 0) + 1;
-            });
+          if (r.feature_ranking && Array.isArray(r.feature_ranking) && r.feature_ranking[0]) {
+            featureCounts[r.feature_ranking[0]] = (featureCounts[r.feature_ranking[0]] || 0) + 1;
           }
         });
         
-        const topPain = Object.entries(painCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
+        const topFeatureKey = Object.entries(featureCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
+        const topFeature = featureNames[topFeatureKey] || topFeatureKey;
 
         return {
           segment: seg.name,
-          avgScore: Math.round(avgScore),
           count: segmentUsers.length,
-          topPain
+          avgErrors: Math.round(avgErrors * 10) / 10,
+          avgWPM: Math.round(avgWPM),
+          topFeature,
+          withEmail: segmentUsers.filter(r => r.email).length
         };
       })
       .filter(Boolean)
-      .sort((a, b) => b!.avgScore - a!.avgScore) as SegmentPain[];
+      .sort((a, b) => b!.count - a!.count) as SegmentPain[];
   };
 
-  // Analyze Impact
+  // 🔧 CHANGED: Analyze Impact with better logic
   const analyzeImpact = (responses: any[]) => {
-    const breaksConcentration = responses.filter(r => 
-      r.flow_breaker_impact === 'breaks_concentration'
+    // Count all frustration-related symptoms
+    const frustrationSymptoms = responses.filter(r => 
+      r.awakening_symptoms && Array.isArray(r.awakening_symptoms) && r.awakening_symptoms.length > 0
     ).length;
-    
-    const unprofessional = responses.filter(r => 
-      r.professional_image_impact === 'unprofessional'
+
+    const deletionErrors = responses.filter(r => 
+      r.awakening_symptoms?.includes('delete_word') || r.awakening_symptoms?.includes('delete_line')
     ).length;
     
     const avoidsMultilingual = responses.filter(r => 
@@ -237,8 +245,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     ).length;
 
     return {
-      breaksConcentration: Math.round((breaksConcentration / responses.length) * 100),
-      unprofessional: Math.round((unprofessional / responses.length) * 100),
+      frustration: Math.round((frustrationSymptoms / responses.length) * 100),
+      deletionErrors: Math.round((deletionErrors / responses.length) * 100),
       avoidsMultilingual: Math.round((avoidsMultilingual / responses.length) * 100),
       searchedSolution: Math.round((searchedSolution / responses.length) * 100)
     };
@@ -247,7 +255,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   // Process all data for insights
   const processAllData = (responses: any[]) => {
     const painPoints = analyzePainPoints(responses);
-    const segmentPain = analyzeSegmentPain(responses);
+    const segmentMetrics = analyzeSegmentMetrics(responses); // 🔧 CHANGED
     const impact = analyzeImpact(responses);
     const featureAnalysis = analyzeFeatures(responses);
     const roi = calculateAverageROI(responses);
@@ -255,19 +263,14 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const completedTest = responses.filter(r => r.test_completed).length;
     const withEmail = responses.filter(r => r.email).length;
 
-    // 🔧 FIX: Calculate avgScore only from completed tests
     const completedTests = responses.filter(r => r.test_completed);
-    const avgScore = completedTests.length > 0
-      ? completedTests.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedTests.length
-      : 0;
 
-    // 🆕 NEW: Calculate typing metrics
     const avgWPM = completedTests.length > 0
       ? completedTests.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedTests.length
       : 0;
 
-    const avgAccuracy = completedTests.length > 0
-      ? completedTests.reduce((acc, r) => acc + (r.total_accuracy || 0), 0) / completedTests.length
+    const avgDeletions = completedTests.length > 0
+      ? completedTests.reduce((acc, r) => acc + (r.total_deletions || 0), 0) / completedTests.length
       : 0;
 
     const avgLanguageErrors = completedTests.length > 0
@@ -281,12 +284,11 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       completedTestRate: Math.round((completedTest / responses.length) * 100),
       withEmail,
       emailRate: Math.round((withEmail / responses.length) * 100),
-      avgScore: Math.round(avgScore), // 🔧 FIXED
-      avgWPM: Math.round(avgWPM), // 🔧 FIXED
-      avgAccuracy: Math.round(avgAccuracy * 10) / 10, // 🆕 NEW
-      avgLanguageErrors: Math.round(avgLanguageErrors * 10) / 10, // 🔧 FIXED
+      avgWPM: Math.round(avgWPM),
+      avgDeletions: Math.round(avgDeletions * 10) / 10, // 🆕 NEW
+      avgLanguageErrors: Math.round(avgLanguageErrors * 10) / 10,
       painPoints,
-      segmentPain,
+      segmentMetrics, // 🔧 CHANGED
       impact,
       featureAnalysis,
       roi
@@ -309,7 +311,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       };
     });
 
-    const totalRankings = responses.filter(r => r.feature_ranking).length;
+    const totalRankings = responses.filter(r => r.feature_ranking && Array.isArray(r.feature_ranking)).length;
     
     if (totalRankings > 0) {
       responses.forEach(r => {
@@ -388,7 +390,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     );
   }
 
-  // Main Render
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -449,9 +450,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                 <p className="text-indigo-200 text-sm mt-2">{data?.completedTest || 0} users proved the problem</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Problem Severity</p>
-                <p className="text-5xl font-bold">{data?.avgScore || 0}</p>
-                <p className="text-indigo-200 text-sm mt-2">Pain score (out of 100)</p>
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Language Errors</p>
+                <p className="text-5xl font-bold">{data?.avgLanguageErrors || 0}</p>
+                <p className="text-indigo-200 text-sm mt-2">Average per 5-minute test</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
                 <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Productivity Loss</p>
@@ -466,7 +467,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🆕 NEW: Typing Performance Metrics */}
+          {/* 🔧 CHANGED: Typing Performance Data */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Activity className="w-9 h-9 mr-3 text-blue-600" />
@@ -481,14 +482,17 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                 <TrendingUp className="w-12 h-12 mx-auto mb-3 text-blue-600" />
                 <p className="text-5xl font-bold text-blue-600 mb-2">{data?.avgWPM || 0}</p>
                 <p className="text-sm font-semibold text-gray-700">Average WPM</p>
-                <p className="text-xs text-gray-500 mt-2">Words per minute</p>
+                <div className="flex items-center justify-center mt-2 text-xs text-red-600">
+                  <ArrowDown className="w-4 h-4 mr-1" />
+                  <span>Global avg: 40 WPM</span>
+                </div>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
-                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-600" />
-                <p className="text-5xl font-bold text-green-600 mb-2">{data?.avgAccuracy || 0}%</p>
-                <p className="text-sm font-semibold text-gray-700">Average Accuracy</p>
-                <p className="text-xs text-gray-500 mt-2">Overall typing precision</p>
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 text-center">
+                <Target className="w-12 h-12 mx-auto mb-3 text-purple-600" />
+                <p className="text-5xl font-bold text-purple-600 mb-2">{data?.avgDeletions || 0}</p>
+                <p className="text-sm font-semibold text-gray-700">Average Deletions</p>
+                <p className="text-xs text-gray-500 mt-2">Backspace presses per test</p>
               </div>
 
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-6 text-center">
@@ -502,8 +506,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-3">Key Insight</h3>
               <p className="text-gray-700 leading-relaxed">
-                Users type at <strong className="text-blue-600">{data?.avgWPM || 0} WPM</strong> with{' '}
-                <strong className="text-green-600">{data?.avgAccuracy || 0}% accuracy</strong>, yet make{' '}
+                Users type at <strong className="text-blue-600">{data?.avgWPM || 0} WPM</strong> (below the 40 WPM global average), 
+                make <strong className="text-purple-600">{data?.avgDeletions || 0} deletions</strong>, and experience{' '}
                 <strong className="text-red-600">{data?.avgLanguageErrors || 0} language-switching errors</strong> in just 5 minutes.
                 This proves language switching is a <strong>distinct, measurable problem</strong> separate from general typing skills.
               </p>
@@ -544,49 +548,44 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* WHO SUFFERS MOST */}
+          {/* 🔧 CHANGED: Target Segments by Metrics */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Users className="w-9 h-9 mr-3 text-purple-600" />
-              Target Segments by Pain Severity
+              User Segments Analysis
             </h2>
-            <p className="text-gray-600 mb-8">Which user groups suffer most? (Higher score = bigger opportunity)</p>
+            <p className="text-gray-600 mb-8">Performance metrics and preferences by user segment:</p>
             
             <div className="space-y-5">
-              {data?.segmentPain?.map((seg: SegmentPain, index: number) => (
+              {data?.segmentMetrics?.map((seg: SegmentPain, index: number) => (
                 <div key={index} className="border-2 border-purple-200 rounded-xl p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{seg.segment}</h3>
-                      <p className="text-sm text-gray-600">{seg.count} validated users in this segment</p>
-                    </div>
-                    <div className="text-center">
-                      <div className={`text-4xl font-bold ${
-                        seg.avgScore >= 75 ? 'text-red-600' : 
-                        seg.avgScore >= 60 ? 'text-orange-600' : 
-                        'text-yellow-600'
-                      }`}>
-                        {seg.avgScore}
-                      </div>
-                      <p className="text-sm text-gray-500">Pain Score</p>
+                      <p className="text-sm text-gray-600">{seg.count} users · {seg.withEmail} emails collected</p>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div
-                      className={`h-4 rounded-full transition-all ${
-                        seg.avgScore >= 75 ? 'bg-gradient-to-r from-red-600 to-pink-600' : 
-                        seg.avgScore >= 60 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 
-                        'bg-gradient-to-r from-yellow-500 to-orange-500'
-                      }`}
-                      style={{ width: `${seg.avgScore}%` }}
-                    />
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-red-50 rounded-lg p-4 text-center">
+                      <p className="text-3xl font-bold text-red-600">{seg.avgErrors}</p>
+                      <p className="text-xs text-gray-600 mt-1">Avg Errors</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <p className="text-3xl font-bold text-blue-600">{seg.avgWPM}</p>
+                      <p className="text-xs text-gray-600 mt-1">Avg WPM</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <p className="text-sm font-bold text-green-700">{seg.topFeature}</p>
+                      <p className="text-xs text-gray-600 mt-1">Top Feature</p>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* IMPACT */}
+          {/* 🔧 CHANGED: Business Impact */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Zap className="w-9 h-9 mr-3 text-yellow-600" />
@@ -597,25 +596,25 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-2xl p-8 text-center">
                 <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Activity className="w-10 h-10 text-red-600" />
+                  <AlertCircle className="w-10 h-10 text-red-600" />
                 </div>
-                <p className="text-6xl font-bold text-red-600 mb-2">{data?.impact?.breaksConcentration || 0}%</p>
-                <p className="text-lg font-semibold text-gray-900 mb-2">Flow Disruption</p>
-                <p className="text-sm text-gray-600">Report concentration breaks from errors</p>
+                <p className="text-6xl font-bold text-red-600 mb-2">{data?.impact?.frustration || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Experience Frustration</p>
+                <p className="text-sm text-gray-600">Report at least one frustration symptom</p>
               </div>
 
               <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl p-8 text-center">
                 <div className="bg-orange-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-10 h-10 text-orange-600" />
+                  <XCircle className="w-10 h-10 text-orange-600" />
                 </div>
-                <p className="text-6xl font-bold text-orange-600 mb-2">{data?.impact?.unprofessional || 0}%</p>
-                <p className="text-lg font-semibold text-gray-900 mb-2">Brand Damage</p>
-                <p className="text-sm text-gray-600">Feel it harms professional image</p>
+                <p className="text-6xl font-bold text-orange-600 mb-2">{data?.impact?.deletionErrors || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Delete Words/Lines</p>
+                <p className="text-sm text-gray-600">Must delete due to wrong language</p>
               </div>
 
               <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-8 text-center">
                 <div className="bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <XCircle className="w-10 h-10 text-purple-600" />
+                  <Target className="w-10 h-10 text-purple-600" />
                 </div>
                 <p className="text-6xl font-bold text-purple-600 mb-2">{data?.impact?.avoidsMultilingual || 0}%</p>
                 <p className="text-lg font-semibold text-gray-900 mb-2">Avoidance Behavior</p>
@@ -633,7 +632,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* FEATURE DEMAND */}
+          {/* 🔧 CHANGED: Feature Validation - ALL features */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
@@ -642,7 +641,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             <p className="text-gray-600 mb-8">Features users ranked as #1 priority (solution validation):</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {data?.featureAnalysis?.slice(0, 6).map((feature: FeatureDemand, index: number) => (
+              {data?.featureAnalysis?.map((feature: FeatureDemand, index: number) => (
                 <div key={feature.feature} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex-1">
@@ -661,7 +660,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all"
-                      style={{ width: `${feature.topChoicePercent}%` }}
+                      style={{ width: `${Math.max(feature.topChoicePercent, 2)}%` }}
                     />
                   </div>
                 </div>
@@ -703,7 +702,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               <h3 className="text-2xl font-bold mb-4">Why Invest in TypeSwitch?</h3>
               <p className="text-lg text-blue-50 leading-relaxed">
                 <strong className="text-white">Market Validation Complete:</strong> {data?.total || 0} users proved the problem exists, 
-                with {data?.completedTest || 0} completing real typing challenges showing {data?.avgScore || 0}/100 pain severity. 
+                with {data?.completedTest || 0} completing real typing challenges showing {data?.avgLanguageErrors || 0} errors per test. 
                 Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors. 
                 {data?.emailRate || 0}% conversion to sales leads demonstrates strong buyer intent. 
                 Top-requested features ({data?.featureAnalysis?.[0]?.displayName || 'N/A'}, {data?.featureAnalysis?.[1]?.displayName || 'N/A'}) 
