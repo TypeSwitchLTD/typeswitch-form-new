@@ -33,6 +33,7 @@ interface FeatureDemand {
   displayName: string;
   avgRating: number;
   topChoicePercent: number;
+  totalSelections: number; // 🆕 NEW
   correlatedFeatures: string[];
   impactScore: number;
   implementationDifficulty: number;
@@ -69,9 +70,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // 🔧 FIXED: Feature mapping - supports both snake_case and camelCase
   const featureNames: Record<string, string> = {
-    // Database keys (snake_case)
     'mechanical': 'Mechanical Keyboard',
     'physical_switch': 'Physical Language Switch',
     'auto_detection': 'Auto Language Detection',
@@ -82,7 +81,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     'programmable_keys': 'Programmable Keys',
     'rotary_knob': 'Rotary Knob',
     'visual_display': 'Visual Display',
-    // Backup camelCase (just in case)
     'physicalSwitch': 'Physical Language Switch',
     'autoDetection': 'Auto Language Detection',
     'dynamicLight': 'Dynamic Backlighting',
@@ -92,7 +90,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     'visualDisplay': 'Visual Display'
   };
 
-  // Load and process data
   useEffect(() => {
     loadData();
     if (autoRefresh) {
@@ -105,7 +102,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     setLoading(true);
     try {
       const result = await getAllSurveyResponses();
-
       if (result.error) throw result.error;
 
       const responses = result.data || [];
@@ -118,7 +114,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     setLoading(false);
   };
 
-  // Calculate ROI - Time Wasted
   const calculateAverageROI = (responses: any[]) => {
     const completedTests = responses.filter(r => r.test_completed);
     if (completedTests.length === 0) return { dailyMinutes: 0, monthlyHours: 0, yearlyHours: 0 };
@@ -144,7 +139,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // Analyze Pain Points
   const analyzePainPoints = (responses: any[]): PainPoint[] => {
     const painCounts: Record<string, number> = {};
     
@@ -185,7 +179,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       .slice(0, 10);
   };
 
-  // Analyze Segment by Metrics
   const analyzeSegmentMetrics = (responses: any[]): SegmentPain[] => {
     const segments = [
       { id: 'adhd', filter: (r: any) => r.diagnosis?.includes('adhd'), name: 'ADHD Users' },
@@ -210,7 +203,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           ? completedUsers.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedUsers.length
           : 0;
         
-        // Find top feature
         const featureCounts: Record<string, number> = {};
         segmentUsers.forEach(r => {
           if (r.feature_ranking && Array.isArray(r.feature_ranking) && r.feature_ranking[0]) {
@@ -234,7 +226,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       .sort((a, b) => b!.count - a!.count) as SegmentPain[];
   };
 
-  // Analyze Impact
   const analyzeImpact = (responses: any[]) => {
     const frustrationSymptoms = responses.filter(r => 
       r.awakening_symptoms && Array.isArray(r.awakening_symptoms) && r.awakening_symptoms.length > 0
@@ -260,7 +251,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // Process all data for insights
   const processAllData = (responses: any[]) => {
     const painPoints = analyzePainPoints(responses);
     const segmentMetrics = analyzeSegmentMetrics(responses);
@@ -303,11 +293,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // 🔧 FIXED: Analyze Features with better debugging
+  // 🔧 FIXED: Analyze Features - counts ALL selections, not just #1
   const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
     const features: Record<string, FeatureDemand> = {};
     
-    // Initialize all features using snake_case keys
     const snakeCaseFeatures = [
       'mechanical',
       'physical_switch',
@@ -327,41 +316,40 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         displayName: featureNames[feature],
         avgRating: 0,
         topChoicePercent: 0,
+        totalSelections: 0, // 🆕 NEW: Count all selections
         correlatedFeatures: [],
         impactScore: 0,
         implementationDifficulty: 5
       };
     });
 
-    // Count responses with valid feature_ranking
     const totalRankings = responses.filter(r => 
       r.feature_ranking && 
       Array.isArray(r.feature_ranking) && 
       r.feature_ranking.length > 0
     ).length;
 
-    console.log('Total rankings found:', totalRankings); // Debug
+    console.log('Total rankings found:', totalRankings);
     
     if (totalRankings > 0) {
       responses.forEach(r => {
         if (r.feature_ranking && Array.isArray(r.feature_ranking)) {
           r.feature_ranking.forEach((feature: string, index: number) => {
-            // Normalize feature name (trim whitespace)
             const normalizedFeature = feature.trim();
             
             if (features[normalizedFeature]) {
               features[normalizedFeature].avgRating += (5 - index);
+              features[normalizedFeature].totalSelections++; // 🔧 Count EVERY selection
               if (index === 0) {
                 features[normalizedFeature].topChoicePercent++;
               }
             } else {
-              console.log('Unknown feature:', normalizedFeature); // Debug
+              console.log('Unknown feature:', normalizedFeature);
             }
           });
         }
       });
 
-      // Calculate percentages and scores
       Object.values(features).forEach(f => {
         f.avgRating = f.avgRating / totalRankings;
         f.topChoicePercent = (f.topChoicePercent / totalRankings) * 100;
@@ -369,10 +357,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       });
     }
 
-    return Object.values(features).sort((a, b) => b.topChoicePercent - a.topChoicePercent);
+    // 🔧 CHANGED: Sort by totalSelections instead of topChoicePercent
+    return Object.values(features).sort((a, b) => b.totalSelections - a.totalSelections);
   };
 
-  // Export Functions
   const exportToCSV = (dataset: string = 'all') => {
     if (!data?.raw) return;
     
@@ -428,7 +416,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -464,11 +451,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         </div>
       </div>
 
-      {/* Content Area */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="space-y-6">
           
-          {/* EXECUTIVE SUMMARY */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <TrendingUp className="w-10 h-10 mr-3" />
@@ -503,7 +488,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* Typing Performance Data */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Activity className="w-9 h-9 mr-3 text-blue-600" />
@@ -550,7 +534,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* PAIN POINTS */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <AlertCircle className="w-9 h-9 mr-3 text-red-600" />
@@ -584,7 +567,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* User Segments */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Users className="w-9 h-9 mr-3 text-purple-600" />
@@ -621,7 +603,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* Business Impact */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Zap className="w-9 h-9 mr-3 text-yellow-600" />
@@ -668,13 +649,13 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* Feature Validation */}
+          {/* 🔧 CHANGED: Feature Validation with totalSelections */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
               Product-Market Fit: Feature Validation
             </h2>
-            <p className="text-gray-600 mb-8">Features users ranked as #1 priority (solution validation):</p>
+            <p className="text-gray-600 mb-8">Features ranked by total user selections (any position in ranking):</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {data?.featureAnalysis?.map((feature: FeatureDemand, index: number) => (
@@ -687,16 +668,20 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                         </div>
                         <h3 className="text-lg font-bold text-gray-900">{feature.displayName}</h3>
                       </div>
-                      <p className="text-sm text-gray-600 ml-13">Top choice by users</p>
+                      {/* 🔧 CHANGED: Show totalSelections and topChoicePercent */}
+                      <p className="text-sm text-gray-600 ml-13">
+                        {feature.totalSelections} users selected · {feature.topChoicePercent.toFixed(0)}% ranked #1
+                      </p>
                     </div>
                     <div className="text-right ml-4">
-                      <p className="text-4xl font-bold text-green-600">{feature.topChoicePercent.toFixed(0)}%</p>
+                      <p className="text-4xl font-bold text-green-600">{feature.totalSelections}</p>
+                      <p className="text-xs text-gray-500">selections</p>
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all"
-                      style={{ width: `${Math.max(feature.topChoicePercent, 2)}%` }}
+                      style={{ width: `${Math.min((feature.totalSelections / data?.total) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -704,7 +689,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* Investment Highlights */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <CheckCircle className="w-10 h-10 mr-3" />
