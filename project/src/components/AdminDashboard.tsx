@@ -1,140 +1,401 @@
-import React, { useState, useEffect } from 'react';
-import { getAllSurveyResponses } from '../lib/supabase';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getAllSurveyResponses, deleteSurveyResponses, deleteTestData } from '../lib/supabase';
 import { 
-  TrendingUp, Users, DollarSign, AlertCircle, 
-  Download, RefreshCw, Clock, CheckCircle,
-  Activity, Mail, Star, Calculator, Zap, Target
+  TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
+  Download, RefreshCw, Filter, ChevronRight, Award, Globe,
+  Package, ShoppingCart, Brain, Clock, CheckCircle, XCircle,
+  BarChart3, PieChart, Activity, Briefcase, Mail, Star
 } from 'lucide-react';
 
 interface Props {
   onLogout: () => void;
 }
 
+interface MarketOpportunity {
+  language: string;
+  score: number;
+  marketSize: number;
+  topFeature: string;
+  mainOccupation: string;
+}
+
+interface SmartInsight {
+  type: 'success' | 'warning' | 'info' | 'critical';
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  actionData?: any;
+}
+
+interface FeatureDemand {
+  feature: string;
+  displayName: string;
+  avgRating: number;
+  topChoicePercent: number;
+  correlatedFeatures: string[];
+  impactScore: number;
+  implementationDifficulty: number;
+}
+
+interface CustomerSegment {
+  id: string;
+  name: string;
+  size: number;
+  characteristics: string[];
+  topFeatures: string[];
+  emails: string[];
+  score: number;
+}
+
+interface PainPoint {
+  symptom: string;
+  count: number;
+  percentage: number;
+}
+
+interface SegmentPain {
+  segment: string;
+  avgScore: number;
+  count: number;
+  topPain: string;
+}
+
 const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [monthlySalary, setMonthlySalary] = useState<string>('15000');
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
+  // Feature display names mapping
+  const featureNames: Record<string, string> = {
+    mechanical: 'Mechanical Keyboard',
+    physicalSwitch: 'Physical Language Switch',
+    autoDetection: 'Auto Language Detection',
+    dynamicLight: 'Dynamic Backlighting',
+    wireless: 'Wireless Connectivity',
+    mic: 'Built-in Microphone',
+    wristRest: 'Ergonomic Wrist Rest',
+    programmableKeys: 'Programmable Keys',
+    rotaryKnob: 'Rotary Knob',
+    visualDisplay: 'Visual Display'
+  };
+
+  // Load and process data
   useEffect(() => {
     loadData();
-  }, []);
+    if (autoRefresh) {
+      const interval = setInterval(loadData, 600000); // 10 minutes
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const result = await getAllSurveyResponses();
+
       if (result.error) throw result.error;
-      
+
       const responses = result.data || [];
-      setData(analyzeEverything(responses));
+      const processed = processAllData(responses);
+      setData(processed);
+      setLastUpdate(new Date());
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error loading data:', err);
     }
     setLoading(false);
   };
 
-  const analyzeEverything = (responses: any[]) => {
-    const completed = responses.filter(r => r.test_completed);
-    
-    // Typing Hours Segments
-    const segments = {
-      light: responses.filter(r => r.hours_typing === '1-3' || r.hours_typing === 'less-1'),
-      medium: responses.filter(r => r.hours_typing === '3-5'),
-      heavy: responses.filter(r => r.hours_typing === '5-8' || r.hours_typing === '8+')
-    };
+  // Calculate ROI - Time Wasted
+  const calculateAverageROI = (responses: any[]) => {
+    const completedTests = responses.filter(r => r.test_completed);
+    if (completedTests.length === 0) return { dailyMinutes: 0, monthlyHours: 0, yearlyHours: 0 };
 
-    // Calculate metrics per segment
-    const getSegmentMetrics = (segment: any[]) => {
-      const completedInSegment = segment.filter(r => r.test_completed);
-      if (completedInSegment.length === 0) return null;
-
-      const avgScore = completedInSegment.reduce((acc, r) => acc + (r.overall_score || 0), 0) / completedInSegment.length;
-      const avgErrors = completedInSegment.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedInSegment.length;
-      const avgWPM = completedInSegment.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / completedInSegment.length;
-      
-      // Top features
-      const featureCounts: Record<string, number> = {};
-      segment.forEach(r => {
-        if (r.feature_ranking?.[0]) {
-          featureCounts[r.feature_ranking[0]] = (featureCounts[r.feature_ranking[0]] || 0) + 1;
-        }
-      });
-      const topFeature = Object.entries(featureCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
-
-      return {
-        count: segment.length,
-        completedCount: completedInSegment.length,
-        avgScore: Math.round(avgScore),
-        avgErrors: Math.round(avgErrors * 10) / 10,
-        avgWPM: Math.round(avgWPM),
-        topFeature: featureNameMap[topFeature] || topFeature,
-        withEmail: segment.filter(r => r.email).length
-      };
-    };
-
-    const featureNameMap: Record<string, string> = {
-      mechanical: 'Mechanical Keyboard',
-      physicalSwitch: 'Physical Language Switch',
-      autoDetection: 'Auto Language Detection',
-      dynamicLight: 'Dynamic Backlighting',
-      wireless: 'Wireless Connectivity',
-      programmableKeys: 'Programmable Keys'
-    };
-
-    // ROI Calculation
-    const totalWasted = completed.reduce((acc, r) => {
-      const wastedSeconds = (r.total_language_errors || 0) * 3 + (r.total_deletions || 0) * 1;
+    const totalWasted = completedTests.reduce((acc, r) => {
+      const wastedSeconds = (r.total_language_errors || 0) * 3 + 
+                           (r.total_deletions || 0) * 1 + 
+                           (r.total_corrections || 0) * 2;
       return acc + wastedSeconds;
     }, 0);
-    const avgWastedSeconds = totalWasted / completed.length;
-    const dailyMinutes = (avgWastedSeconds / 300) * 90;
-    const yearlyHours = Math.round((dailyMinutes / 60) * 22 * 12);
+
+    const avgWastedSeconds = totalWasted / completedTests.length;
+    const testMinutes = 5;
+    const wastedPerMinute = avgWastedSeconds / testMinutes;
+    const dailyMinutes = (wastedPerMinute * 90) / 60; // 90 minutes of typing per day
+    const monthlyHours = (dailyMinutes * 22) / 60; // 22 working days
+    const yearlyHours = monthlyHours * 12;
 
     return {
+      dailyMinutes: Math.round(dailyMinutes * 10) / 10,
+      monthlyHours: Math.round(monthlyHours * 10) / 10,
+      yearlyHours: Math.round(yearlyHours)
+    };
+  };
+
+  // Analyze Pain Points
+  const analyzePainPoints = (responses: any[]): PainPoint[] => {
+    const painCounts: Record<string, number> = {};
+    
+    responses.forEach(r => {
+      if (r.awakening_symptoms && Array.isArray(r.awakening_symptoms)) {
+        r.awakening_symptoms.forEach((symptom: string) => {
+          painCounts[symptom] = (painCounts[symptom] || 0) + 1;
+        });
+      }
+    });
+
+    const symptomNames: Record<string, string> = {
+      'glance_icon': 'Check language icon constantly',
+      'extra_shortcut': 'Press Alt+Shift multiple times',
+      'type_and_check': 'Type and pause to verify language',
+      'delete_word': 'Delete entire words in wrong language',
+      'wrong_punctuation': 'Punctuation errors due to language',
+      'sent_wrong_lang': 'Send messages in wrong language',
+      'delete_line': 'Delete full lines/multiple words',
+      'go_back_fix': 'Go back to fix language errors',
+      'caps_lock_error': 'Accidental Caps Lock issues',
+      'mental_effort': 'Mental effort to remember language',
+      'shortcut_conflict': 'Avoid certain shortcuts',
+      'use_3rd_party': 'Search for external solutions',
+      'avoid_multilingual': 'Avoid multilingual documents',
+      'use_separate_apps': 'Use separate apps per language',
+      'self_talk': 'Talk to self about language',
+      'shortcut_memory': 'Forget shortcuts due to overload'
+    };
+
+    return Object.entries(painCounts)
+      .map(([symptom, count]) => ({
+        symptom: symptomNames[symptom] || symptom,
+        count,
+        percentage: Math.round((count / responses.length) * 100)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  };
+
+  // Analyze Segment Pain
+  const analyzeSegmentPain = (responses: any[]): SegmentPain[] => {
+    const segments = [
+      { id: 'adhd', filter: (r: any) => r.diagnosis?.includes('adhd'), name: 'ADHD Users' },
+      { id: 'translation', filter: (r: any) => r.occupation === 'translation', name: 'Translators' },
+      { id: 'tech', filter: (r: any) => r.occupation === 'tech', name: 'Tech Workers' },
+      { id: 'power', filter: (r: any) => r.hours_typing === '5-8' || r.hours_typing === '8+', name: 'Power Users (5-8h)' },
+      { id: 'hebrew', filter: (r: any) => r.languages?.includes('Hebrew-English'), name: 'Hebrew-English' }
+    ];
+
+    return segments
+      .map(seg => {
+        const segmentUsers = responses.filter(seg.filter);
+        if (segmentUsers.length === 0) return null;
+
+        const avgScore = segmentUsers.reduce((acc, r) => acc + (r.overall_score || 0), 0) / segmentUsers.length;
+        
+        // Find top pain point
+        const painCounts: Record<string, number> = {};
+        segmentUsers.forEach(r => {
+          if (r.awakening_symptoms) {
+            r.awakening_symptoms.forEach((s: string) => {
+              painCounts[s] = (painCounts[s] || 0) + 1;
+            });
+          }
+        });
+        
+        const topPain = Object.entries(painCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
+
+        return {
+          segment: seg.name,
+          avgScore: Math.round(avgScore),
+          count: segmentUsers.length,
+          topPain
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b!.avgScore - a!.avgScore) as SegmentPain[];
+  };
+
+  // Analyze Impact
+  const analyzeImpact = (responses: any[]) => {
+    const breaksConcentration = responses.filter(r => 
+      r.flow_breaker_impact === 'breaks_concentration'
+    ).length;
+    
+    const unprofessional = responses.filter(r => 
+      r.professional_image_impact === 'unprofessional'
+    ).length;
+    
+    const avoidsMultilingual = responses.filter(r => 
+      r.awakening_symptoms?.includes('avoid_multilingual')
+    ).length;
+    
+    const searchedSolution = responses.filter(r => 
+      r.awakening_symptoms?.includes('use_3rd_party')
+    ).length;
+
+    return {
+      breaksConcentration: Math.round((breaksConcentration / responses.length) * 100),
+      unprofessional: Math.round((unprofessional / responses.length) * 100),
+      avoidsMultilingual: Math.round((avoidsMultilingual / responses.length) * 100),
+      searchedSolution: Math.round((searchedSolution / responses.length) * 100)
+    };
+  };
+
+  // Process all data for insights
+  const processAllData = (responses: any[]) => {
+    const painPoints = analyzePainPoints(responses);
+    const segmentPain = analyzeSegmentPain(responses);
+    const impact = analyzeImpact(responses);
+    const featureAnalysis = analyzeFeatures(responses);
+    const roi = calculateAverageROI(responses);
+    
+    const completedTest = responses.filter(r => r.test_completed).length;
+    const withEmail = responses.filter(r => r.email).length;
+
+    return {
+      raw: responses,
       total: responses.length,
-      completed: completed.length,
-      light: getSegmentMetrics(segments.light),
-      medium: getSegmentMetrics(segments.medium),
-      heavy: getSegmentMetrics(segments.heavy),
-      roi: { yearlyHours, dailyMinutes: Math.round(dailyMinutes * 10) / 10 }
+      completedTest,
+      completedTestRate: Math.round((completedTest / responses.length) * 100),
+      withEmail,
+      emailRate: Math.round((withEmail / responses.length) * 100),
+      avgScore: responses.reduce((acc, r) => acc + (r.overall_score || 0), 0) / responses.length,
+      avgWPM: responses.reduce((acc, r) => acc + (r.total_wpm || 0), 0) / responses.length,
+      avgLanguageErrors: responses.reduce((acc, r) => acc + (r.total_language_errors || 0), 0) / completedTest || 0,
+      painPoints,
+      segmentPain,
+      impact,
+      featureAnalysis,
+      roi
     };
   };
 
-  const calculateROI = () => {
-    const salary = parseFloat(monthlySalary);
-    if (!salary || !data?.roi?.yearlyHours) return null;
+  // Analyze Features
+  const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
+    const features: Record<string, FeatureDemand> = {};
     
-    const hourlyRate = salary / 22 / 8;
-    const yearlyLoss = data.roi.yearlyHours * hourlyRate;
+    Object.keys(featureNames).forEach(feature => {
+      features[feature] = {
+        feature,
+        displayName: featureNames[feature],
+        avgRating: 0,
+        topChoicePercent: 0,
+        correlatedFeatures: [],
+        impactScore: 0,
+        implementationDifficulty: 5
+      };
+    });
+
+    const totalRankings = responses.filter(r => r.feature_ranking).length;
     
-    return {
-      hourlyRate: Math.round(hourlyRate),
-      yearlyLoss: Math.round(yearlyLoss)
-    };
+    if (totalRankings > 0) {
+      responses.forEach(r => {
+        if (r.feature_ranking && Array.isArray(r.feature_ranking)) {
+          r.feature_ranking.forEach((feature: string, index: number) => {
+            if (features[feature]) {
+              features[feature].avgRating += (5 - index);
+              if (index === 0) features[feature].topChoicePercent++;
+            }
+          });
+        }
+      });
+
+      Object.values(features).forEach(f => {
+        f.avgRating = f.avgRating / totalRankings;
+        f.topChoicePercent = (f.topChoicePercent / totalRankings) * 100;
+        f.impactScore = (f.avgRating * 0.4 + (f.topChoicePercent / 20) * 0.6) * 20;
+      });
+    }
+
+    return Object.values(features).sort((a, b) => b.topChoicePercent - a.topChoicePercent);
   };
 
-  const roiResult = calculateROI();
+  // Export Functions
+  const exportToCSV = (dataset: string = 'all') => {
+    if (!data?.raw) return;
+    
+    let exportData = data.raw;
+    let filename = 'typeswitch-export';
+    
+    if (dataset === 'emails') {
+      exportData = data.raw.filter((r: any) => r.email);
+      filename = 'typeswitch-email-list';
+    }
+    
+    const headers = [
+      'Date', 'Email', 'Languages', 'Occupation', 'Age', 'Score', 
+      'WPM', 'Accuracy', 'Diagnosis'
+    ];
+    
+    const rows = exportData.map((r: any) => [
+      new Date(r.created_at).toLocaleDateString(),
+      r.email || '',
+      (r.languages || []).join(';'),
+      r.occupation || '',
+      r.age || '',
+      r.overall_score || 0,
+      r.total_wpm || 0,
+      r.total_accuracy || 0,
+      (r.diagnosis || []).join(';')
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  if (loading) {
+  // Render loading state
+  if (loading && !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading Investor Dashboard...</p>
+        </div>
       </div>
     );
   }
 
+  // Main Render
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-white">TypeSwitch Investor Dashboard</h1>
+            <div className="flex items-center space-x-4">
+              <h1 className="text-3xl font-bold text-white">TypeSwitch Investor Dashboard</h1>
+              <div className="flex items-center text-sm text-blue-100">
+                <Clock className="w-4 h-4 mr-1" />
+                Updated: {lastUpdate.toLocaleTimeString()}
+              </div>
+            </div>
             <div className="flex items-center space-x-2">
-              <button onClick={loadData} className="p-2 rounded-lg bg-white text-blue-600">
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`p-2 rounded-lg ${autoRefresh ? 'bg-green-500 text-white' : 'bg-white text-gray-600'}`}
+                title={autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+              >
+                <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={loadData}
+                className="p-2 rounded-lg bg-white text-blue-600 hover:bg-blue-50"
+              >
                 <RefreshCw className="w-4 h-4" />
               </button>
-              <button onClick={onLogout} className="px-4 py-2 bg-white text-blue-600 rounded-lg">
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium"
+              >
                 Logout
               </button>
             </div>
@@ -142,193 +403,258 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        
-        {/* Executive Summary */}
-        <div className="bg-white rounded-xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold mb-6">📊 Executive Summary</h2>
-          <div className="grid grid-cols-3 gap-6">
-            <div className="text-center">
-              <p className="text-5xl font-bold text-blue-600">{data?.total || 0}</p>
-              <p className="text-gray-600 mt-2">Total Respondents</p>
-            </div>
-            <div className="text-center">
-              <p className="text-5xl font-bold text-green-600">{data?.completed || 0}</p>
-              <p className="text-gray-600 mt-2">Completed Test</p>
-            </div>
-            <div className="text-center">
-              <p className="text-5xl font-bold text-orange-600">{data?.roi?.yearlyHours || 0}h</p>
-              <p className="text-gray-600 mt-2">Wasted per Year</p>
-            </div>
-          </div>
-        </div>
-
-        {/* User Segments */}
-        <div className="bg-white rounded-xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold mb-6">👥 User Segments by Typing Hours</h2>
+      {/* Content Area */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="space-y-6">
           
-          <div className="space-y-6">
-            {/* Heavy Users */}
-            {data?.heavy && (
-              <div className="border-2 border-red-200 rounded-xl p-6 bg-red-50">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">🔥 Heavy Users (5-8+ hours/day)</h3>
-                    <p className="text-gray-600 mt-1">{data.heavy.count} users · {data.heavy.completedCount} completed test</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-5xl font-bold text-red-600">{data.heavy.avgScore}</p>
-                    <p className="text-sm text-gray-600">Pain Score</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-4 mt-4">
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg Errors</p>
-                    <p className="text-2xl font-bold text-red-600">{data.heavy.avgErrors}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg WPM</p>
-                    <p className="text-2xl font-bold text-blue-600">{data.heavy.avgWPM}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Top Feature</p>
-                    <p className="text-sm font-bold text-gray-900">{data.heavy.topFeature}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Email Leads</p>
-                    <p className="text-2xl font-bold text-green-600">{data.heavy.withEmail}</p>
-                  </div>
-                </div>
+          {/* EXECUTIVE SUMMARY - שינוי מלל בלבד */}
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
+            <h2 className="text-3xl font-bold mb-6 flex items-center">
+              <TrendingUp className="w-10 h-10 mr-3" />
+              Market Validation Summary
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Validated Users</p>
+                <p className="text-5xl font-bold">{data?.total || 0}</p>
+                <p className="text-indigo-200 text-sm mt-2">Survey completions proving demand</p>
               </div>
-            )}
-
-            {/* Medium Users */}
-            {data?.medium && (
-              <div className="border-2 border-orange-200 rounded-xl p-6 bg-orange-50">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">⚡ Medium Users (3-5 hours/day)</h3>
-                    <p className="text-gray-600 mt-1">{data.medium.count} users · {data.medium.completedCount} completed test</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-5xl font-bold text-orange-600">{data.medium.avgScore}</p>
-                    <p className="text-sm text-gray-600">Pain Score</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-4 mt-4">
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg Errors</p>
-                    <p className="text-2xl font-bold text-red-600">{data.medium.avgErrors}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg WPM</p>
-                    <p className="text-2xl font-bold text-blue-600">{data.medium.avgWPM}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Top Feature</p>
-                    <p className="text-sm font-bold text-gray-900">{data.medium.topFeature}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Email Leads</p>
-                    <p className="text-2xl font-bold text-green-600">{data.medium.withEmail}</p>
-                  </div>
-                </div>
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Test Completion</p>
+                <p className="text-5xl font-bold">{data?.completedTestRate || 0}%</p>
+                <p className="text-indigo-200 text-sm mt-2">{data?.completedTest || 0} users proved the problem</p>
               </div>
-            )}
-
-            {/* Light Users */}
-            {data?.light && (
-              <div className="border-2 border-yellow-200 rounded-xl p-6 bg-yellow-50">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">💡 Light Users (1-3 hours/day)</h3>
-                    <p className="text-gray-600 mt-1">{data.light.count} users · {data.light.completedCount} completed test</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-5xl font-bold text-yellow-600">{data.light.avgScore}</p>
-                    <p className="text-sm text-gray-600">Pain Score</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-4 mt-4">
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg Errors</p>
-                    <p className="text-2xl font-bold text-red-600">{data.light.avgErrors}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Avg WPM</p>
-                    <p className="text-2xl font-bold text-blue-600">{data.light.avgWPM}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Top Feature</p>
-                    <p className="text-sm font-bold text-gray-900">{data.light.topFeature}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Email Leads</p>
-                    <p className="text-2xl font-bold text-green-600">{data.light.withEmail}</p>
-                  </div>
-                </div>
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Problem Severity</p>
+                <p className="text-5xl font-bold">{Math.round(data?.avgScore || 0)}</p>
+                <p className="text-indigo-200 text-sm mt-2">Pain score (out of 100)</p>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* ROI Calculator */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            <DollarSign className="w-8 h-8 mr-3 text-green-600" />
-            ROI Calculator
-          </h2>
-          
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <label className="block text-sm font-semibold mb-2">Monthly Salary (₪):</label>
-              <input
-                type="number"
-                value={monthlySalary}
-                onChange={(e) => setMonthlySalary(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-green-300 rounded-lg text-lg font-semibold"
-              />
-            </div>
-            
-            {roiResult && (
-              <div className="bg-white rounded-xl p-6 border-2 border-green-400">
-                <p className="text-sm text-gray-600 mb-2">Annual Cost per Employee:</p>
-                <p className="text-5xl font-bold text-red-600">₪{roiResult.yearlyLoss.toLocaleString()}</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Based on {data?.roi?.yearlyHours}h wasted/year at ₪{roiResult.hourlyRate}/hour
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Productivity Loss</p>
+                <div className="flex items-baseline space-x-2">
+                  <p className="text-3xl font-bold">{data?.roi?.dailyMinutes || 0}</p>
+                  <span className="text-lg">min/day</span>
+                </div>
+                <p className="text-indigo-200 text-sm mt-2">
+                  {data?.roi?.yearlyHours || 0} hours wasted annually
                 </p>
               </div>
-            )}
+            </div>
           </div>
 
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-gray-700">
-              <strong>Calculation:</strong> Users waste {data?.roi?.dailyMinutes} minutes/day on language errors = {data?.roi?.yearlyHours} hours/year. 
-              Hourly rate = Monthly Salary ÷ 176 hours.
-            </p>
+          {/* PAIN POINTS - שינוי כותרת בלבד */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <AlertCircle className="w-9 h-9 mr-3 text-red-600" />
+              TOP 10 Validated Pain Points
+            </h2>
+            <p className="text-gray-600 mb-8">Real user frustrations when switching languages while typing:</p>
+            
+            <div className="grid gap-4">
+              {data?.painPoints?.map((pain: PainPoint, index: number) => (
+                <div key={index} className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-gradient-to-br from-red-500 to-pink-600 text-white font-bold text-xl w-12 h-12 rounded-full flex items-center justify-center shadow-lg">
+                        {index + 1}
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900">{pain.symptom}</h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-red-600">{pain.percentage}%</p>
+                      <p className="text-sm text-gray-500">{pain.count} users affected</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-gradient-to-r from-red-500 to-pink-600 h-3 rounded-full transition-all"
+                      style={{ width: `${pain.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* WHO SUFFERS MOST - שינוי מלל */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <Users className="w-9 h-9 mr-3 text-purple-600" />
+              Target Segments by Pain Severity
+            </h2>
+            <p className="text-gray-600 mb-8">Which user groups suffer most? (Higher score = bigger opportunity)</p>
+            
+            <div className="space-y-5">
+              {data?.segmentPain?.map((seg: SegmentPain, index: number) => (
+                <div key={index} className="border-2 border-purple-200 rounded-xl p-6 hover:shadow-lg transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{seg.segment}</h3>
+                      <p className="text-sm text-gray-600">{seg.count} validated users in this segment</p>
+                    </div>
+                    <div className="text-center">
+                      <div className={`text-4xl font-bold ${
+                        seg.avgScore >= 75 ? 'text-red-600' : 
+                        seg.avgScore >= 60 ? 'text-orange-600' : 
+                        'text-yellow-600'
+                      }`}>
+                        {seg.avgScore}
+                      </div>
+                      <p className="text-sm text-gray-500">Pain Score</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div
+                      className={`h-4 rounded-full transition-all ${
+                        seg.avgScore >= 75 ? 'bg-gradient-to-r from-red-600 to-pink-600' : 
+                        seg.avgScore >= 60 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 
+                        'bg-gradient-to-r from-yellow-500 to-orange-500'
+                      }`}
+                      style={{ width: `${seg.avgScore}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* IMPACT - שינוי מלל */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <Zap className="w-9 h-9 mr-3 text-yellow-600" />
+              Business Impact
+            </h2>
+            <p className="text-gray-600 mb-8">How language-switching errors affect professional work:</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-2xl p-8 text-center">
+                <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Activity className="w-10 h-10 text-red-600" />
+                </div>
+                <p className="text-6xl font-bold text-red-600 mb-2">{data?.impact?.breaksConcentration || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Flow Disruption</p>
+                <p className="text-sm text-gray-600">Report concentration breaks from errors</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl p-8 text-center">
+                <div className="bg-orange-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-10 h-10 text-orange-600" />
+                </div>
+                <p className="text-6xl font-bold text-orange-600 mb-2">{data?.impact?.unprofessional || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Brand Damage</p>
+                <p className="text-sm text-gray-600">Feel it harms professional image</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-8 text-center">
+                <div className="bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <XCircle className="w-10 h-10 text-purple-600" />
+                </div>
+                <p className="text-6xl font-bold text-purple-600 mb-2">{data?.impact?.avoidsMultilingual || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Avoidance Behavior</p>
+                <p className="text-sm text-gray-600">Skip multilingual tasks entirely</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 text-center">
+                <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Download className="w-10 h-10 text-blue-600" />
+                </div>
+                <p className="text-6xl font-bold text-blue-600 mb-2">{data?.impact?.searchedSolution || 0}%</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Active Solution Seekers</p>
+                <p className="text-sm text-gray-600">Already looking for alternatives</p>
+              </div>
+            </div>
+          </div>
+
+          {/* FEATURE DEMAND - שינוי מלל */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+              <Package className="w-9 h-9 mr-3 text-green-600" />
+              Product-Market Fit: Feature Validation
+            </h2>
+            <p className="text-gray-600 mb-8">Features users ranked as #1 priority (solution validation):</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {data?.featureAnalysis?.slice(0, 6).map((feature: FeatureDemand, index: number) => (
+                <div key={feature.feature} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-bold text-lg w-10 h-10 rounded-full flex items-center justify-center">
+                          {index + 1}
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">{feature.displayName}</h3>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-13">Top choice by users</p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-4xl font-bold text-green-600">{feature.topChoicePercent.toFixed(0)}%</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all"
+                      style={{ width: `${feature.topChoicePercent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* MARKET VALIDATION - שינוי מלל */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
+            <h2 className="text-3xl font-bold mb-6 flex items-center">
+              <CheckCircle className="w-10 h-10 mr-3" />
+              Investment Highlights
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <Mail className="w-12 h-12 mb-3 text-blue-200" />
+                <p className="text-4xl font-bold mb-2">{data?.emailRate || 0}%</p>
+                <p className="text-blue-100">Lead Conversion</p>
+                <p className="text-sm text-blue-200 mt-2">{data?.withEmail || 0} qualified sales leads</p>
+              </div>
+              
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <Activity className="w-12 h-12 mb-3 text-purple-200" />
+                <p className="text-4xl font-bold mb-2">{data?.avgLanguageErrors?.toFixed(1) || 0}</p>
+                <p className="text-purple-100">Errors per 5-Min Test</p>
+                <p className="text-sm text-purple-200 mt-2">Quantifiable problem proof</p>
+              </div>
+              
+              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
+                <TrendingUp className="w-12 h-12 mb-3 text-green-200" />
+                <p className="text-4xl font-bold mb-2">{Math.round(data?.avgWPM || 0)}</p>
+                <p className="text-green-100">Average WPM</p>
+                <p className="text-sm text-green-200 mt-2">Professional users validated</p>
+              </div>
+            </div>
+
+            <div className="border-t border-white border-opacity-20 pt-6">
+              <h3 className="text-2xl font-bold mb-4">Why Invest in TypeSwitch?</h3>
+              <p className="text-lg text-blue-50 leading-relaxed">
+                <strong className="text-white">Market Validation Complete:</strong> {data?.total || 0} users proved the problem exists, 
+                with {data?.completedTest || 0} completing real typing challenges showing {Math.round(data?.avgScore || 0)}/100 pain severity. 
+                Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors. 
+                {data?.emailRate || 0}% conversion to sales leads demonstrates strong buyer intent. 
+                Top-requested features ({data?.featureAnalysis?.[0]?.displayName || 'N/A'}, {data?.featureAnalysis?.[1]?.displayName || 'N/A'}) 
+                align with our core product, confirming product-market fit in the $5B global keyboard market.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => exportToCSV('emails')}
+                className="flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold shadow-lg transition"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Export Lead List
+              </button>
+            </div>
+          </div>
+
         </div>
-
-        {/* Key Insights */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl shadow-xl p-8 text-white">
-          <h2 className="text-2xl font-bold mb-6">💡 Investment Thesis</h2>
-          <div className="space-y-4 text-lg leading-relaxed">
-            <p>
-              ✅ <strong>Heavy users (5-8h/day)</strong> show the highest pain score ({data?.heavy?.avgScore}/100) and make {data?.heavy?.avgErrors} language errors per test.
-            </p>
-            <p>
-              ✅ Top requested feature across all segments: <strong>{data?.heavy?.topFeature || data?.medium?.topFeature}</strong>
-            </p>
-            <p>
-              ✅ With {roiResult ? `₪${roiResult.yearlyLoss.toLocaleString()}` : 'calculated'} annual cost per employee, TypeSwitch delivers clear ROI.
-            </p>
-            <p>
-              ✅ {data?.completed} users completed the typing challenge, validating real pain points with measurable data.
-            </p>
-          </div>
-        </div>
-
       </div>
     </div>
   );
