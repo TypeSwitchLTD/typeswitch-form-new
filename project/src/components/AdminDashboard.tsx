@@ -69,25 +69,34 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Feature display names mapping
+  // 🔧 FIXED: Feature mapping - supports both snake_case and camelCase
   const featureNames: Record<string, string> = {
-    mechanical: 'Mechanical Keyboard',
-    physicalSwitch: 'Physical Language Switch',
-    autoDetection: 'Auto Language Detection',
-    dynamicLight: 'Dynamic Backlighting',
-    wireless: 'Wireless Connectivity',
-    mic: 'Built-in Microphone',
-    wristRest: 'Ergonomic Wrist Rest',
-    programmableKeys: 'Programmable Keys',
-    rotaryKnob: 'Rotary Knob',
-    visualDisplay: 'Visual Display'
+    // Database keys (snake_case)
+    'mechanical': 'Mechanical Keyboard',
+    'physical_switch': 'Physical Language Switch',
+    'auto_detection': 'Auto Language Detection',
+    'dynamic_lighting': 'Dynamic Backlighting',
+    'wireless': 'Wireless Connectivity',
+    'mic': 'Built-in Microphone',
+    'wrist_rest': 'Ergonomic Wrist Rest',
+    'programmable_keys': 'Programmable Keys',
+    'rotary_knob': 'Rotary Knob',
+    'visual_display': 'Visual Display',
+    // Backup camelCase (just in case)
+    'physicalSwitch': 'Physical Language Switch',
+    'autoDetection': 'Auto Language Detection',
+    'dynamicLight': 'Dynamic Backlighting',
+    'wristRest': 'Ergonomic Wrist Rest',
+    'programmableKeys': 'Programmable Keys',
+    'rotaryKnob': 'Rotary Knob',
+    'visualDisplay': 'Visual Display'
   };
 
   // Load and process data
   useEffect(() => {
     loadData();
     if (autoRefresh) {
-      const interval = setInterval(loadData, 600000); // 10 minutes
+      const interval = setInterval(loadData, 600000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
@@ -176,7 +185,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       .slice(0, 10);
   };
 
-  // 🔧 CHANGED: Analyze Segment by Metrics (not pain)
+  // Analyze Segment by Metrics
   const analyzeSegmentMetrics = (responses: any[]): SegmentPain[] => {
     const segments = [
       { id: 'adhd', filter: (r: any) => r.diagnosis?.includes('adhd'), name: 'ADHD Users' },
@@ -225,9 +234,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       .sort((a, b) => b!.count - a!.count) as SegmentPain[];
   };
 
-  // 🔧 CHANGED: Analyze Impact with better logic
+  // Analyze Impact
   const analyzeImpact = (responses: any[]) => {
-    // Count all frustration-related symptoms
     const frustrationSymptoms = responses.filter(r => 
       r.awakening_symptoms && Array.isArray(r.awakening_symptoms) && r.awakening_symptoms.length > 0
     ).length;
@@ -255,7 +263,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   // Process all data for insights
   const processAllData = (responses: any[]) => {
     const painPoints = analyzePainPoints(responses);
-    const segmentMetrics = analyzeSegmentMetrics(responses); // 🔧 CHANGED
+    const segmentMetrics = analyzeSegmentMetrics(responses);
     const impact = analyzeImpact(responses);
     const featureAnalysis = analyzeFeatures(responses);
     const roi = calculateAverageROI(responses);
@@ -285,21 +293,35 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       withEmail,
       emailRate: Math.round((withEmail / responses.length) * 100),
       avgWPM: Math.round(avgWPM),
-      avgDeletions: Math.round(avgDeletions * 10) / 10, // 🆕 NEW
+      avgDeletions: Math.round(avgDeletions * 10) / 10,
       avgLanguageErrors: Math.round(avgLanguageErrors * 10) / 10,
       painPoints,
-      segmentMetrics, // 🔧 CHANGED
+      segmentMetrics,
       impact,
       featureAnalysis,
       roi
     };
   };
 
-  // Analyze Features
+  // 🔧 FIXED: Analyze Features with better debugging
   const analyzeFeatures = (responses: any[]): FeatureDemand[] => {
     const features: Record<string, FeatureDemand> = {};
     
-    Object.keys(featureNames).forEach(feature => {
+    // Initialize all features using snake_case keys
+    const snakeCaseFeatures = [
+      'mechanical',
+      'physical_switch',
+      'auto_detection',
+      'dynamic_lighting',
+      'wireless',
+      'mic',
+      'wrist_rest',
+      'programmable_keys',
+      'rotary_knob',
+      'visual_display'
+    ];
+
+    snakeCaseFeatures.forEach(feature => {
       features[feature] = {
         feature,
         displayName: featureNames[feature],
@@ -311,20 +333,35 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       };
     });
 
-    const totalRankings = responses.filter(r => r.feature_ranking && Array.isArray(r.feature_ranking)).length;
+    // Count responses with valid feature_ranking
+    const totalRankings = responses.filter(r => 
+      r.feature_ranking && 
+      Array.isArray(r.feature_ranking) && 
+      r.feature_ranking.length > 0
+    ).length;
+
+    console.log('Total rankings found:', totalRankings); // Debug
     
     if (totalRankings > 0) {
       responses.forEach(r => {
         if (r.feature_ranking && Array.isArray(r.feature_ranking)) {
           r.feature_ranking.forEach((feature: string, index: number) => {
-            if (features[feature]) {
-              features[feature].avgRating += (5 - index);
-              if (index === 0) features[feature].topChoicePercent++;
+            // Normalize feature name (trim whitespace)
+            const normalizedFeature = feature.trim();
+            
+            if (features[normalizedFeature]) {
+              features[normalizedFeature].avgRating += (5 - index);
+              if (index === 0) {
+                features[normalizedFeature].topChoicePercent++;
+              }
+            } else {
+              console.log('Unknown feature:', normalizedFeature); // Debug
             }
           });
         }
       });
 
+      // Calculate percentages and scores
       Object.values(features).forEach(f => {
         f.avgRating = f.avgRating / totalRankings;
         f.topChoicePercent = (f.topChoicePercent / totalRankings) * 100;
@@ -378,7 +415,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     URL.revokeObjectURL(url);
   };
 
-  // Render loading state
   if (loading && !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -467,7 +503,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🔧 CHANGED: Typing Performance Data */}
+          {/* Typing Performance Data */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Activity className="w-9 h-9 mr-3 text-blue-600" />
@@ -548,7 +584,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🔧 CHANGED: Target Segments by Metrics */}
+          {/* User Segments */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Users className="w-9 h-9 mr-3 text-purple-600" />
@@ -585,7 +621,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🔧 CHANGED: Business Impact */}
+          {/* Business Impact */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Zap className="w-9 h-9 mr-3 text-yellow-600" />
@@ -632,7 +668,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🔧 CHANGED: Feature Validation - ALL features */}
+          {/* Feature Validation */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
@@ -668,7 +704,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* MARKET VALIDATION */}
+          {/* Investment Highlights */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <CheckCircle className="w-10 h-10 mr-3" />
