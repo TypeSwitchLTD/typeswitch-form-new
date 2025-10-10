@@ -431,6 +431,14 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>
