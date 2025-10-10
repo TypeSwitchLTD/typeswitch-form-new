@@ -11,7 +11,6 @@ import FeatureRating from './components/FeatureRating';
 import PurchaseDecision from './components/PurchaseDecision';
 import ThankYou from './components/ThankYou';
 import ShareCard from './components/ShareCard';
-import AdminDashboard from './components/AdminDashboard';
 import { saveSurveyData, saveEmailSubscription } from './lib/supabase';
 import {
   getDeviceFingerprint,
@@ -178,7 +177,6 @@ const setupProtections = () => {
 function App() {
   const [currentScreen, setCurrentScreen] = useState(0);
   const [showShareCard, setShowShareCard] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [surveyId, setSurveyId] = useState<string | null>(null);
@@ -198,9 +196,6 @@ function App() {
   const [language, setLanguage] = useState<Language>('en');
   const t = translations[language];
   const [chosenExercise, setChosenExercise] = useState('purchasing_email');
-  const adminClickCount = useRef(0);
-  const adminClickTimer = useRef<NodeJS.Timeout | null>(null);
-  const lastClickTime = useRef<number>(0);
   
   // ANALYTICS: Screen tracking
   const [screenTimes, setScreenTimes] = useState<Record<string, number>>({});
@@ -388,34 +383,6 @@ function App() {
   };
   
   const handleShowShareCard = () => setShowShareCard(true);
-
-  const handleAdminClick = () => {
-    const currentTime = Date.now();
-    if (currentTime - lastClickTime.current > 2000) {
-      adminClickCount.current = 0;
-    }
-    lastClickTime.current = currentTime;
-    adminClickCount.current++;
-    if (adminClickTimer.current) {
-      clearTimeout(adminClickTimer.current);
-    }
-    adminClickTimer.current = setTimeout(() => {
-      adminClickCount.current = 0;
-    }, 2000);
-    if (adminClickCount.current >= 5) {
-      if (adminClickTimer.current) {
-        clearTimeout(adminClickTimer.current);
-        adminClickTimer.current = null;
-      }
-      const username = prompt('Admin Username:');
-      if (username === 'Miki$123456') {
-        const password = prompt('Admin Password:');
-        if (password === 'Miki$123456') {
-          setShowAdmin(true);
-        }
-      }
-    }
-  };
   
   const handleEmailSubmit = async (email: string) => {
     try {
@@ -442,6 +409,11 @@ function App() {
       setRetakeSourceScreen(null);
     }
   };
+
+  // NEW: Handle view results from "already submitted" screen
+  const handleViewResultsDashboard = () => {
+    window.location.href = '/results-dashboard';
+  };
   
   const getTranslations = (key: string) => t[key] || {};
   
@@ -455,8 +427,6 @@ function App() {
       </div>
     );
   }
-  
-  if (showAdmin) { return <AdminDashboard onLogout={() => { setShowAdmin(false); }} />; }
 
   if (error && currentScreen !== screens.length - 1) {
     return (
@@ -522,13 +492,21 @@ function App() {
              <button onClick={handleTryTest} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition">
                {t.app.tryChallengeButton}
              </button>
+             
+             {/* NEW: View Survey Results Button */}
+             <button onClick={handleViewResultsDashboard} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center">
+               <svg className="w-5 h-5 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+               </svg>
+               View Survey Results
+             </button>
            </div>
            <div className="mt-6 pt-6 border-t">
              <p className="text-sm text-gray-600 mb-2">{t.app.yourDiscountCode}</p>
              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                <code className="text-green-800 font-mono font-bold">{existingDiscountCode || '...'}</code>
              </div>
-             <p className="text-xs text-gray-500 mt-2">תוכלו להשתמש בקוד הזה לזיהוי בפניות ליצירת קשר</p>
+             <p className="text-xs text-gray-500 mt-2">Use this code for discount, support inquiries, and viewing results</p>
              <a href="https://typeswitch.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 text-sm font-semibold mt-2 inline-block">typeswitch.io</a>
            </div>
          </div>
@@ -542,7 +520,7 @@ function App() {
 
     switch (screenName) {
       case 'welcome':
-        return <WelcomeScreen language={language} onNext={() => setCurrentScreen(screens.indexOf('demographics'))} onAdminClick={handleAdminClick} setLanguage={setLanguage} t={getTranslations('welcome')} />;
+        return <WelcomeScreen language={language} onNext={() => setCurrentScreen(screens.indexOf('demographics'))} setLanguage={setLanguage} t={getTranslations('welcome')} />;
       
       case 'demographics':
         return <DemographicsScreen onNext={handleNext} t={getTranslations('demographics')} />;
@@ -661,7 +639,7 @@ function App() {
         return <ThankYou discountCode={discountCode} onShare={handleShowShareCard} onEmailSubmit={handleEmailSubmit} skippedTest={skippedTest && !testCompleted} onTryTest={handleTryTest} t={getTranslations('thankYou')} />;
         
       default:
-        return <WelcomeScreen language={language} onNext={() => setCurrentScreen(1)} onAdminClick={handleAdminClick} setLanguage={setLanguage} t={getTranslations('welcome')} />;
+        return <WelcomeScreen language={language} onNext={() => setCurrentScreen(1)} setLanguage={setLanguage} t={getTranslations('welcome')} />;
     }
   };
 
