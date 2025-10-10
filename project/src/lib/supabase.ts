@@ -6,6 +6,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// NEW: Verify discount code for accessing results
+export async function verifyDiscountCode(discountCode: string) {
+  try {
+    const { data, error } = await supabase
+      .from('survey_responses_v2')
+      .select('id, discount_code, survey_completed')
+      .eq('discount_code', discountCode)
+      .eq('survey_completed', true)
+      .single();
+    
+    if (error || !data) {
+      return { valid: false, error: 'Code not found' };
+    }
+    
+    return { valid: true, data };
+  } catch (err) {
+    return { valid: false, error: 'Verification failed' };
+  }
+}
+
 // SYNCHRONIZED SCORING ALGORITHM (40-100 range)
 // Accuracy: 70% | Flow: 15% | Completion: 10% | Speed: 5%
 function calculateOverallScore(metrics: any): number {
