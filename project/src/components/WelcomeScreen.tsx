@@ -5,27 +5,15 @@ import React from 'react';
 interface Props {
   language: 'en' | 'he';
   onNext: () => void;
-  onAdminClick: () => void;
   setLanguage: (lang: 'en' | 'he') => void;
   t: any; // Translation object
 }
 
-const WelcomeScreen: React.FC<Props> = ({ language, onNext, onAdminClick, setLanguage, t }) => {
+const WelcomeScreen: React.FC<Props> = ({ language, onNext, setLanguage, t }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-12 max-w-4xl w-full relative">
-        {/* Admin Click Icon - FIXED HTML ERROR */}
-        <div 
-            onClick={onAdminClick}
-            className="absolute top-4 right-4 text-gray-400 hover:text-blue-600 cursor-pointer p-2 z-20"
-            title="Admin Access"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-        </div>
-
         {/* Header */}
         <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -35,14 +23,14 @@ const WelcomeScreen: React.FC<Props> = ({ language, onNext, onAdminClick, setLan
               {t?.subtitle || "Help us build the ultimate multilingual keyboard. Your feedback will shape its future."}
             </p>
             
-            {/* Language Switcher - IMPROVED LOGIC */}
+            {/* Language Switcher */}
             <div className="mt-6 p-3 bg-gray-100 rounded-lg inline-flex items-center gap-2">
                 <p className="text-gray-700">{t?.switchLanguagePrompt || "To answer the survey in Hebrew"}</p>
                 <button 
                     onClick={() => setLanguage(language === 'en' ? 'he' : 'en')}
                     className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition"
                 >
-                    {language === 'en' ? 'Switch to Hebrew' : 'English'}
+                    {language === 'en' ? 'עברית' : 'English'}
                 </button>
             </div>
         </div>
