@@ -177,6 +177,7 @@ const setupProtections = () => {
 function App() {
   const [currentScreen, setCurrentScreen] = useState(0);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [showResultsDashboard, setShowResultsDashboard] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [surveyId, setSurveyId] = useState<string | null>(null);
