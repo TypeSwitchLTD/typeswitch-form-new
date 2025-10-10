@@ -7,6 +7,7 @@ interface Props {
   onEmailSubmit?: (email: string) => void;
   skippedTest?: boolean;
   onTryTest?: () => void;
+  onViewResults?: () => void;
   t: any; // Translation object
 }
 
@@ -48,7 +49,7 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
     setCodeError('');
   };
 
-  // NEW: Verify code and navigate to results
+  // NEW: Verify code and show dashboard
   const handleCodeSubmit = async () => {
     if (!enteredCode || enteredCode.trim() === '') {
       setCodeError('Please enter your code');
@@ -61,8 +62,13 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
     const result = await verifyDiscountCode(enteredCode.trim());
 
     if (result.valid) {
-      // Code is valid - navigate to dashboard
-      window.location.href = '/results-dashboard';
+      // Code is valid - import and show AdminDashboard component
+      setShowCodePopup(false);
+      // Trigger parent to show AdminDashboard
+      if (typeof window !== 'undefined') {
+        (window as any).showAdminDashboard = true;
+        window.location.reload(); // Reload to show dashboard
+      }
     } else {
       setCodeError(
         <>
