@@ -11,7 +11,7 @@ interface Props {
   t: any; // Translation object
 }
 
-const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skippedTest = false, onTryTest, t }) => {
+const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skippedTest = false, onTryTest, onViewResults, t }) => {
   const [email, setEmail] = useState('');
   const [copied, setCopied] = useState(false);
   const [emailSubmitted, setEmailSubmitted] = useState(false);
@@ -62,12 +62,10 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
     const result = await verifyDiscountCode(enteredCode.trim());
 
     if (result.valid) {
-      // Code is valid - import and show AdminDashboard component
+      // Code is valid - close popup and trigger dashboard view
       setShowCodePopup(false);
-      // Trigger parent to show AdminDashboard
-      if (typeof window !== 'undefined') {
-        (window as any).showAdminDashboard = true;
-        window.location.reload(); // Reload to show dashboard
+      if (onViewResults) {
+        onViewResults();
       }
     } else {
       setCodeError(
@@ -155,13 +153,13 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
           </div>
         </div>
 
-        {/* NEW: View Survey Results Button */}
+        {/* View Survey Results Button */}
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
             📊 Curious About the Results?
           </h3>
           <p className="text-gray-600 text-center mb-4">
-            See how your responses compare to others! View aggregate survey results, typing metrics, and discover what features the community values most.
+            Join the community! See how your responses compare, view typing metrics, and discover what features others value most. Your code gives you instant access.
           </p>
           <button
             onClick={handleViewResults}
@@ -170,7 +168,7 @@ const ThankYou: React.FC<Props> = ({ discountCode, onShare, onEmailSubmit, skipp
             <svg className="w-5 h-5 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            View Survey Results
+            View Community Results
           </button>
         </div>
 
