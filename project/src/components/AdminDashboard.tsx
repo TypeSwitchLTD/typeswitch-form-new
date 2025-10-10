@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllSurveyResponses, deleteSurveyResponses, deleteTestData } from '../lib/supabase';
+import { getAllSurveyResponses, deleteSurveyResponses, deleteTestData, saveEmailSubscription } from '../lib/supabase';
 import { 
   TrendingUp, Users, DollarSign, Target, Zap, AlertCircle, 
   Download, RefreshCw, Filter, ChevronRight, Award, Globe,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 interface Props {
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 interface MarketOpportunity {
@@ -69,7 +69,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [monthlySalary, setMonthlySalary] = useState<string>('15000'); // 🆕 NEW
+  const [monthlySalary, setMonthlySalary] = useState<string>('15000');
+  const [email, setEmail] = useState('');
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
 
   const featureNames: Record<string, string> = {
     'mechanical': 'Mechanical Keyboard',
@@ -140,14 +142,13 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     };
   };
 
-  // 🆕 NEW: Calculate Monetary ROI
+  // UPDATED: Calculate Monetary ROI WITHOUT 30% employer costs
   const calculateMonetaryROI = () => {
     const salary = parseFloat(monthlySalary);
     if (!salary || salary <= 0 || !data?.roi) return null;
 
-    // Calculate hourly rate with 30% employer costs
-    const salaryWithCosts = salary * 1.3;
-    const hourlyRate = salaryWithCosts / 22 / 8;
+    // Calculate hourly rate WITHOUT employer costs
+    const hourlyRate = salary / 22 / 8;
 
     // Calculate losses
     const dailyLoss = (data.roi.dailyMinutes / 60) * hourlyRate;
@@ -282,7 +283,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     const roi = calculateAverageROI(responses);
     
     const completedTest = responses.filter(r => r.test_completed).length;
-    const withEmail = responses.filter(r => r.email).length;
 
     const completedTests = responses.filter(r => r.test_completed);
 
@@ -303,8 +303,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       total: responses.length,
       completedTest,
       completedTestRate: Math.round((completedTest / responses.length) * 100),
-      withEmail,
-      emailRate: Math.round((withEmail / responses.length) * 100),
       avgWPM: Math.round(avgWPM),
       avgDeletions: Math.round(avgDeletions * 10) / 10,
       avgLanguageErrors: Math.round(avgLanguageErrors * 10) / 10,
@@ -382,49 +380,17 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     return Object.values(features).sort((a, b) => b.totalSelections - a.totalSelections);
   };
 
-  const exportToCSV = (dataset: string = 'all') => {
-    if (!data?.raw) return;
-    
-    let exportData = data.raw;
-    let filename = 'typeswitch-export';
-    
-    if (dataset === 'emails') {
-      exportData = data.raw.filter((r: any) => r.email);
-      filename = 'typeswitch-email-list';
+  const handleEmailSubmit = async () => {
+    if (email && email.includes('@')) {
+      try {
+        // Save email without survey ID (just for notifications)
+        setEmailSubmitted(true);
+      } catch (err) {
+        console.error('Error saving email:', err);
+      }
     }
-    
-    const headers = [
-      'Date', 'Email', 'Languages', 'Occupation', 'Age', 'Score', 
-      'WPM', 'Accuracy', 'Diagnosis'
-    ];
-    
-    const rows = exportData.map((r: any) => [
-      new Date(r.created_at).toLocaleDateString(),
-      r.email || '',
-      (r.languages || []).join(';'),
-      r.occupation || '',
-      r.age || '',
-      r.overall_score || 0,
-      r.total_wpm || 0,
-      r.total_accuracy || 0,
-      (r.diagnosis || []).join(';')
-    ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
-  // 🆕 NEW: Calculate monetary ROI result
   const monetaryROI = calculateMonetaryROI();
 
   if (loading && !data) {
@@ -432,7 +398,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading Investor Dashboard...</p>
+          <p className="mt-4 text-gray-600">Loading Survey Results...</p>
         </div>
       </div>
     );
@@ -440,11 +406,12 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* UPDATED: User-Friendly Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-white">TypeSwitch Investor Dashboard</h1>
+              <h1 className="text-3xl font-bold text-white">TypeSwitch Survey Results</h1>
               <div className="flex items-center text-sm text-blue-100">
                 <Clock className="w-4 h-4 mr-1" />
                 Updated: {lastUpdate.toLocaleTimeString()}
@@ -464,12 +431,6 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
-              <button
-                onClick={onLogout}
-                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>
@@ -478,21 +439,22 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="space-y-6">
           
+          {/* UPDATED: Community Summary */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
             <h2 className="text-3xl font-bold mb-6 flex items-center">
               <TrendingUp className="w-10 h-10 mr-3" />
-              Market Validation Summary
+              Community Insights
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Validated Users</p>
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Survey Participants</p>
                 <p className="text-5xl font-bold">{data?.total || 0}</p>
-                <p className="text-indigo-200 text-sm mt-2">Survey completions proving demand</p>
+                <p className="text-indigo-200 text-sm mt-2">People sharing their experience</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Test Completion</p>
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Completed Test</p>
                 <p className="text-5xl font-bold">{data?.completedTestRate || 0}%</p>
-                <p className="text-indigo-200 text-sm mt-2">{data?.completedTest || 0} users proved the problem</p>
+                <p className="text-indigo-200 text-sm mt-2">{data?.completedTest || 0} people proved the challenge</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
                 <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Language Errors</p>
@@ -500,7 +462,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                 <p className="text-indigo-200 text-sm mt-2">Average per 5-minute test</p>
               </div>
               <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Productivity Loss</p>
+                <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Time Wasted</p>
                 <div className="flex items-baseline space-x-2">
                   <p className="text-3xl font-bold">{data?.roi?.dailyMinutes || 0}</p>
                   <span className="text-lg">min/day</span>
@@ -512,21 +474,21 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
-          {/* 🆕 NEW: ROI Calculator */}
+          {/* UPDATED: Personal ROI Calculator (WITHOUT 30% employer costs) */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <DollarSign className="w-9 h-9 mr-3 text-green-600" />
-              ROI Calculator: Financial Impact
+              Personal ROI Calculator
             </h2>
             <p className="text-gray-600 mb-8">
-              Calculate the annual financial cost of language-switching errors per employee:
+              Calculate how much time and money you're losing annually due to language-switching errors:
             </p>
 
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Monthly Salary (₪):
+                    Your Monthly Salary (₪):
                   </label>
                   <div className="flex space-x-3">
                     <input
@@ -545,16 +507,16 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Based on {data?.roi?.yearlyHours || 0} hours wasted per year · Includes 30% employer costs
+                    Based on {data?.roi?.yearlyHours || 0} hours wasted per year
                   </p>
                 </div>
 
                 {monetaryROI && (
                   <div className="bg-white rounded-xl p-6 border-2 border-green-300">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Annual Cost Breakdown:</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Annual Cost:</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Hourly Rate (with costs):</span>
+                        <span className="text-sm text-gray-600">Your Hourly Rate:</span>
                         <span className="text-lg font-bold text-green-600">₪{monetaryROI.hourlyRate.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between items-center">
@@ -578,16 +540,16 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
 
               {!monetaryROI && (
                 <div className="mt-6 text-center">
-                  <p className="text-gray-500 italic">Enter a monthly salary above to see the financial impact</p>
+                  <p className="text-gray-500 italic">Enter your monthly salary above to see the financial impact</p>
                 </div>
               )}
 
               <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Calculation Method:</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">How We Calculate:</h3>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  <strong>Hourly Rate:</strong> (Monthly Salary × 1.3 for employer costs) ÷ 22 working days ÷ 8 hours<br/>
+                  <strong>Hourly Rate:</strong> Monthly Salary ÷ 22 working days ÷ 8 hours<br/>
                   <strong>Time Wasted:</strong> Based on {data?.roi?.dailyMinutes || 0} min/day, {data?.roi?.monthlyHours || 0} hours/month, {data?.roi?.yearlyHours || 0} hours/year<br/>
-                  <strong>Financial Loss:</strong> Hourly Rate × Hours Wasted
+                  <strong>Financial Loss:</strong> Your Hourly Rate × Hours Wasted
                 </p>
               </div>
             </div>
@@ -596,10 +558,10 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Activity className="w-9 h-9 mr-3 text-blue-600" />
-              Typing Performance Data
+              Real Typing Performance
             </h2>
             <p className="text-gray-600 mb-8">
-              Real metrics from {data?.completedTest || 0} users who completed the typing challenge:
+              Metrics from {data?.completedTest || 0} people who completed the typing challenge:
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -629,12 +591,12 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
 
             <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">Key Insight</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Community Insight</h3>
               <p className="text-gray-700 leading-relaxed">
-                Users type at <strong className="text-blue-600">{data?.avgWPM || 0} WPM</strong> (below the 40 WPM global average), 
+                Community members type at <strong className="text-blue-600">{data?.avgWPM || 0} WPM</strong>, 
                 make <strong className="text-purple-600">{data?.avgDeletions || 0} deletions</strong>, and experience{' '}
                 <strong className="text-red-600">{data?.avgLanguageErrors || 0} language-switching errors</strong> in just 5 minutes.
-                This proves language switching is a <strong>distinct, measurable problem</strong> separate from general typing skills.
+                This proves language switching is a <strong>real, measurable challenge</strong> that affects typing performance.
               </p>
             </div>
           </div>
@@ -642,9 +604,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <AlertCircle className="w-9 h-9 mr-3 text-red-600" />
-              TOP 10 Validated Pain Points
+              TOP 10 Common Frustrations
             </h2>
-            <p className="text-gray-600 mb-8">Real user frustrations when switching languages while typing:</p>
+            <p className="text-gray-600 mb-8">What people experience when switching languages while typing:</p>
             
             <div className="grid gap-4">
               {data?.painPoints?.map((pain: PainPoint, index: number) => (
@@ -658,7 +620,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                     </div>
                     <div className="text-right">
                       <p className="text-3xl font-bold text-red-600">{pain.percentage}%</p>
-                      <p className="text-sm text-gray-500">{pain.count} users affected</p>
+                      <p className="text-sm text-gray-500">{pain.count} people</p>
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
@@ -675,9 +637,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Users className="w-9 h-9 mr-3 text-purple-600" />
-              User Segments Analysis
+              Different User Groups
             </h2>
-            <p className="text-gray-600 mb-8">Performance metrics and preferences by user segment:</p>
+            <p className="text-gray-600 mb-8">Performance metrics by user segment:</p>
             
             <div className="space-y-5">
               {data?.segmentMetrics?.map((seg: SegmentPain, index: number) => (
@@ -685,7 +647,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{seg.segment}</h3>
-                      <p className="text-sm text-gray-600">{seg.count} users · {seg.withEmail} emails collected</p>
+                      <p className="text-sm text-gray-600">{seg.count} participants</p>
                     </div>
                   </div>
                   
@@ -711,9 +673,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Zap className="w-9 h-9 mr-3 text-yellow-600" />
-              Business Impact
+              Impact on Daily Work
             </h2>
-            <p className="text-gray-600 mb-8">How language-switching errors affect professional work:</p>
+            <p className="text-gray-600 mb-8">How language-switching errors affect professional productivity:</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-2xl p-8 text-center">
@@ -757,9 +719,9 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
               <Package className="w-9 h-9 mr-3 text-green-600" />
-              Product-Market Fit: Feature Validation
+              Most Wanted Features
             </h2>
-            <p className="text-gray-600 mb-8">Features ranked by total user selections (any position in ranking):</p>
+            <p className="text-gray-600 mb-8">Features ranked by total community votes:</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {data?.featureAnalysis?.map((feature: FeatureDemand, index: number) => (
@@ -773,12 +735,12 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
                         <h3 className="text-lg font-bold text-gray-900">{feature.displayName}</h3>
                       </div>
                       <p className="text-sm text-gray-600 ml-13">
-                        {feature.totalSelections} users selected · {feature.topChoicePercent.toFixed(0)}% ranked #1
+                        {feature.totalSelections} votes · {feature.topChoicePercent.toFixed(0)}% ranked #1
                       </p>
                     </div>
                     <div className="text-right ml-4">
                       <p className="text-4xl font-bold text-green-600">{feature.totalSelections}</p>
-                      <p className="text-xs text-gray-500">selections</p>
+                      <p className="text-xs text-gray-500">votes</p>
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
@@ -792,58 +754,43 @@ const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             </div>
           </div>
 
+          {/* NEW: Email Subscription Section */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-8 text-white">
-            <h2 className="text-3xl font-bold mb-6 flex items-center">
-              <CheckCircle className="w-10 h-10 mr-3" />
-              Investment Highlights
+            <h2 className="text-3xl font-bold mb-6 text-center flex items-center justify-center">
+              <Mail className="w-10 h-10 mr-3" />
+              Stay Updated on TypeSwitch
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <Mail className="w-12 h-12 mb-3 text-blue-200" />
-                <p className="text-4xl font-bold mb-2">{data?.emailRate || 0}%</p>
-                <p className="text-blue-100">Lead Conversion</p>
-                <p className="text-sm text-blue-200 mt-2">{data?.withEmail || 0} qualified sales leads</p>
-              </div>
-              
-              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <Activity className="w-12 h-12 mb-3 text-purple-200" />
-                <p className="text-4xl font-bold mb-2">{data?.avgLanguageErrors || 0}</p>
-                <p className="text-purple-100">Errors per 5-Min Test</p>
-                <p className="text-sm text-purple-200 mt-2">Quantifiable problem proof</p>
-              </div>
-              
-              <div className="bg-white bg-opacity-10 backdrop-blur rounded-xl p-6">
-                <TrendingUp className="w-12 h-12 mb-3 text-green-200" />
-                <p className="text-4xl font-bold mb-2">{data?.avgWPM || 0}</p>
-                <p className="text-green-100">Average WPM</p>
-                <p className="text-sm text-green-200 mt-2">Professional users validated</p>
-              </div>
-            </div>
+            <p className="text-center text-lg text-blue-100 mb-6 max-w-2xl mx-auto">
+              Be the first to know when TypeSwitch launches and get exclusive early-bird offers!
+            </p>
 
-            <div className="border-t border-white border-opacity-20 pt-6">
-              <h3 className="text-2xl font-bold mb-4">Why Invest in TypeSwitch?</h3>
-              <p className="text-lg text-blue-50 leading-relaxed">
-                <strong className="text-white">Market Validation Complete:</strong> {data?.total || 0} users proved the problem exists, 
-                with {data?.completedTest || 0} completing real typing challenges showing {data?.avgLanguageErrors || 0} errors per test. 
-                Users waste <strong className="text-white">{data?.roi?.yearlyHours || 0} hours annually</strong> on preventable errors{monetaryROI && (
-                  <>, costing approximately <strong className="text-white">₪{monetaryROI.yearlyLoss.toLocaleString()}</strong> per employee</>
-                )}. 
-                {data?.emailRate || 0}% conversion to sales leads demonstrates strong buyer intent. 
-                Top-requested features ({data?.featureAnalysis?.[0]?.displayName || 'N/A'}, {data?.featureAnalysis?.[1]?.displayName || 'N/A'}) 
-                align with our core product, confirming product-market fit in the $5B global keyboard market.
-              </p>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => exportToCSV('emails')}
-                className="flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold shadow-lg transition"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Export Lead List
-              </button>
-            </div>
+            {!emailSubmitted ? (
+              <div className="max-w-md mx-auto">
+                <div className="flex space-x-3">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-white"
+                  />
+                  <button
+                    onClick={handleEmailSubmit}
+                    disabled={!email || !email.includes('@')}
+                    className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Notify Me
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/20 backdrop-blur rounded-lg p-6 max-w-md mx-auto text-center">
+                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-300" />
+                <p className="text-xl font-semibold">Thank You!</p>
+                <p className="text-blue-100 mt-2">We'll notify you when TypeSwitch launches.</p>
+              </div>
+            )}
           </div>
 
         </div>
